@@ -1,0 +1,191 @@
+<meta charset="utf-8">
+<title>How to Hill-Climb Qwen3.6-27B on PPTX — Evidence-Based Experiment Design</title>
+<style>
+  @page { size: letter; margin: 0.7in 0.75in; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 10.4pt;
+         line-height: 1.52; color: #1a1a1a; margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 2px; letter-spacing: -0.4px; }
+  .sub { color: #666; font-size: 9.6pt; margin-bottom: 16px; }
+  h2 { font-size: 13pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #1a1a1a; }
+  h3 { font-size: 11pt; margin: 15px 0 5px; color: #111; }
+  p { margin: 0 0 9px; }
+  ul, ol { margin: 0 0 9px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: 8.9pt; background: #f2f2f4;
+         padding: 1px 4px; border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 13px; font-size: 9.3pt; }
+  th { background: #1a1a1a; color: #fff; text-align: left; padding: 6px 8px; font-weight: 600; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .box { background: #f6f8fa; border-left: 3px solid #1a1a1a; padding: 10px 13px; margin: 12px 0; }
+  .win { background: #f0f7f0; border-left: 3px solid #2d7a3e; padding: 10px 13px; margin: 12px 0; }
+  .warn { background: #fdf6ef; border-left: 3px solid #b8791f; padding: 10px 13px; margin: 12px 0; }
+  .lede { font-size: 11pt; background: #1a1a1a; color: #fff; padding: 13px 16px; margin: 0 0 18px;
+          border-radius: 4px; line-height: 1.5; }
+  .lede b { color: #fff; }
+  .cite { color: #555; font-size: 8.6pt; }
+  .src { font-size: 8.6pt; color: #444; }
+  .src li { margin-bottom: 3px; }
+  strong { font-weight: 650; }
+</style>
+
+<h1>How to Hill-Climb Qwen3.6-27B on PPTX</h1>
+<div class="sub">Evidence-based experiment design · Faisal Nabulsi · 23 July 2026 · sources: 23 papers, 8 adversarially-verified claims</div>
+
+<div class="lede">
+<b>Bottom line:</b> our training run failed for a reason that is documented in the literature, and the fix is known and proven. We rewarded the model for <b>putting text on slides</b>, so it learned to pad. The fix is to reward <b>how the slide is laid out</b> — measured geometrically from the rendered image — because padding makes those numbers <i>worse</i>, not better. A 2026 paper (AeSlides) ran almost exactly our experiment on a 30B open model and got a large, clean hill-climb doing this.
+</div>
+
+<h2>1. Why our run failed — every failure maps to a documented one</h2>
+
+<p>This is worth stating plainly: we did not hit a mysterious wall. We reproduced four well-documented failure modes at once.</p>
+
+<table>
+  <tr><th style="width:27%">What we saw</th><th style="width:38%">The documented cause</th><th>Source</th></tr>
+  <tr>
+    <td><b>Model padded its output</b> to inflate text-coverage</td>
+    <td>Rewards that pay for <i>containing</i> something ("presence-based") are structurally easy to game. In the studied rubrics <b>90.2% of weight was presence-based vs 8.6% penalty-based</b>. Result: outputs get longer and denser while quality drops — <b>conciseness −2.91</b>, correctness −0.85, overall −1.02. Our reward was <b>100% presence-based</b>.</td>
+    <td class="cite">arXiv 2605.12474</td>
+  </tr>
+  <tr>
+    <td><b>Held-out score fell</b> while training reward moved (−0.024 → −0.50)</td>
+    <td>The signature of reward hacking under a weak verifier: "training reward rises, reference-panel reward plateaus, and exploitation grows over training." Proxy gains simply do not transfer.</td>
+    <td class="cite">arXiv 2605.12474; Gao et al. 2210.10760</td>
+  </tr>
+  <tr>
+    <td><b>Reward pinned at exactly −0.5</b> (every rollout identical)</td>
+    <td>A group where every sample scores the same has <b>zero relative advantage → zero gradient</b>. Binary/sparse outcome rewards produce these "degenerate groups" <b>60–70% of the time</b>; partial-credit rewards cut it below 25%. Our −0.5 floor made <i>every</i> group degenerate — training had literally nothing to learn from.</td>
+    <td class="cite">arXiv 2601.03525</td>
+  </tr>
+  <tr>
+    <td><b>Abrupt collapse</b> in a multi-turn, thinking-on run</td>
+    <td>"Training often collapses abruptly in multi-turn agentic RL, <b>especially in the long-reasoning (Qwen3, thinking-on) setting</b>, and common fixes (removing std normalization, removing KL, batch diversity) have only minimal effect." We were running the single most collapse-prone configuration that exists.</td>
+    <td class="cite">arXiv 2512.17008 (EACL 2026)</td>
+  </tr>
+</table>
+
+<div class="warn">
+<b>Two mistakes were mine, and both are correctable.</b> First, I set failure-to-submit to <b>−0.5</b>. The proven recipe sets invalid output to <b>reward 0</b>, never negative — a large negative floor tells the model "everything is bad" and flattens the learning signal into nothing. Second, standard GRPO <i>itself</i> has a length bias: it divides each response's loss by its token count, so <b>longer responses accumulate more gradient</b> and verbosity is encouraged even when the reward doesn't ask for it. So we had two independent forces pushing toward padding — the reward and the algorithm.
+</div>
+
+<h2>2. The fix: reward the layout, not the text</h2>
+
+<p><b>AeSlides</b> (arXiv 2604.22840, 2026) is the closest thing to our experiment in the literature: GRPO on a <b>30B open-weight model</b> (GLM-4.7-Flash) for slide generation on <b>8×H100</b>, rewarded by deterministic layout metrics computed from the <i>rendered</i> slide. Their results are the hill-climb we're trying to produce:</p>
+
+<table>
+  <tr><th>Metric</th><th>Before</th><th>After</th><th>Change</th></tr>
+  <tr><td>Aspect-ratio compliance</td><td>36%</td><td>85%</td><td><b>+49 pts</b></td></tr>
+  <tr><td>Excessive whitespace <span class="cite">(lower better)</span></td><td>0.059</td><td>0.033</td><td><b>−44%</b></td></tr>
+  <tr><td>Element collisions <span class="cite">(lower better)</span></td><td>0.126</td><td>0.087</td><td><b>−31%</b></td></tr>
+  <tr><td>Visual imbalance <span class="cite">(lower better)</span></td><td>1.545</td><td>1.111</td><td><b>−28%</b></td></tr>
+  <tr><td>Render error rate</td><td>0.78%</td><td>0.00%</td><td><b>−0.78 pts</b></td></tr>
+  <tr><td>Human quality score (0–5)</td><td>3.31</td><td>3.56</td><td>+7.6%</td></tr>
+</table>
+
+<p class="cite">For scale: their tuned 30B open model (3.56) scored above Claude-Sonnet-4.5 (3.44) and GPT-5.2 (3.08) on human-rated layout quality.</p>
+
+<div class="win">
+<b>Why this reward can't be padded.</b> This is the whole point. Their four signals are <i>geometric</i>: does the slide fit its aspect ratio, is whitespace balanced, do elements overlap or spill off the slide, is the visual centre of mass near the middle. If the model dumps extra text onto a slide, <b>collisions go up, imbalance goes up, whitespace distribution gets worse</b> — the reward <i>falls</i>. The exact behaviour our old reward paid for is the behaviour this reward punishes. That's what "hard to game" actually means: the cheat and the goal point in opposite directions.
+</div>
+
+<h3>We already have everything needed to compute these</h3>
+<ul>
+  <li><b>Rendered images</b> — our <code>render_slides</code> tool already produces PNGs (that's how the model sees its own slides).</li>
+  <li><b>Element geometry</b> — python-pptx gives every shape's <code>left/top/width/height</code> directly. AeSlides had to scrape this out of a browser DOM with Playwright; <b>we get it natively and more reliably</b>. Collision, off-slide overflow, and centroid imbalance are a few lines of arithmetic.</li>
+  <li><b>Whitespace</b> — local pixel variance over the rendered PNG (their method: grayscale → box-filter variance → threshold). Straightforward with numpy/OpenCV.</li>
+</ul>
+
+<h3>How to combine the signals (this detail matters)</h3>
+<p>Do <b>not</b> add the raw metrics into one score — that recreates the "one number to farm" problem. AeSlides normalizes <b>each metric separately</b> into its own advantage, then sums:</p>
+<div class="box">
+<code>A<sup>(k)</sup> = (r<sup>(k)</sup> − mean[r<sup>(k)</sup>]) / std[r<sup>(k)</sup>]</code> &nbsp;for each metric k, then &nbsp;<code>A = Σ<sub>k</sub> A<sup>(k)</sup></code>, then batch-normalize <code>Â = (A − mean) / std</code>.
+</div>
+<p>Because each metric is standardized before summing, <b>no single metric can dominate by having a bigger natural range</b>. This directly prevents the "cardinality bias" failure — where a few easy, redundant checks swamp the signal and the policy optimizes the easy stuff instead of the hard stuff <span class="cite">(arXiv 2601.03525)</span>.</p>
+
+<h3>Validity gating: zero, not negative</h3>
+<p>AeSlides: <i>"If no valid HTML is generated, or if the generated HTML fails to render, the overall reward is set to 0."</i> Broken output earns <b>nothing</b>; it is not punished into the floor. This is the single change most likely to have prevented our collapse.</p>
+
+<h3>Expect to be gamed, and patch the metric</h3>
+<p>AeSlides found and closed exploits iteratively — they stripped <code>min-height</code>/<code>overflow:hidden</code> (which faked aspect-ratio compliance) and removed background images plus a Gaussian blur (which faked whitespace via texture). <b>Plan for one or two rounds of this.</b> Reward-hacking is not a sign the approach is wrong; it's a normal part of building a verifiable reward.</p>
+
+<h2>3. Which benchmark — and one correction</h2>
+
+<table>
+  <tr><th style="width:19%">Benchmark</th><th style="width:20%">What it is</th><th style="width:24%">Reward type</th><th>Use for us</th></tr>
+  <tr><td><b>SlidesBench</b><br><span class="cite">(our current data)</span></td><td>Slide generation from instructions</td><td>Reference-based + text coverage</td><td><b>Keep the tasks, drop the metric.</b> The task set is fine; the coverage metric is what's broken.</td></tr>
+  <tr><td><b>PresentBench</b></td><td>Slide generation</td><td>~54 <i>instance-specific</i> binary checklist items, LLM-judged</td><td><b>Evaluation.</b> Fine-grained binary checks resist gaming far better than one continuous score, but judge-scored ⇒ not a clean deterministic training signal.</td></tr>
+  <tr><td><b>PPTArena</b></td><td>Slide <i>editing</i></td><td>Two VLM judges</td><td>External comparison only (27B vs Fable).</td></tr>
+  <tr><td><b>PPT-Eval</b></td><td><b>GUI / computer-use</b> agents on PowerPoint Online</td><td>GUI task success</td><td><b>Not applicable</b> — see correction.</td></tr>
+</table>
+
+<div class="warn">
+<b>Correction to our earlier plan.</b> Our TODO listed PPT-Eval as the primary hill-climb benchmark, described as programmatic editing checks. That was wrong: <b>PPT-Eval is a benchmark for GUI-based computer-use agents driving PowerPoint Online</b> — a different modality entirely from our code-generation setup. Good that we checked before building against it.
+</div>
+
+<p><b>Decision: don't change datasets.</b> Our 141-train / 45-held-out SlidesBench-derived split stays. We change the <i>reward</i>, which is where the actual defect is. This also keeps everything we've already built and validated.</p>
+
+<h2>4. Setup: run single-turn first, then re-enable the agentic loop</h2>
+
+<p>This is the one place I'd deliberately step <i>back</i> from what we built, temporarily.</p>
+<ul>
+  <li>Our configuration — <b>multi-turn + thinking-on + GRPO</b> — is specifically identified as the most collapse-prone setting, where the usual stabilizers barely help <span class="cite">(2512.17008)</span>.</li>
+  <li><b>AeSlides got its large clean climb with single-turn generation</b> (8192-token responses, 8 rollouts/prompt, 1 epoch).</li>
+  <li>The one successful <i>agentic</i> slide-RL result (arXiv 2603.16839) used a <b>7B</b> model, trained only <b>0.5% of parameters</b>, and warm-started from <b>288 expert trajectories</b> generated by Claude Opus 4.6 — it got <b>+33.1% over base</b>, reaching 91.2% of Opus quality. Notably it found that <i>instruction-following and tool-use compliance, not parameter count</i>, drive agentic performance.</li>
+</ul>
+
+<p><b>So: prove the reward works in the simple setting first.</b> If we change the reward <i>and</i> keep the most unstable training configuration, a failure tells us nothing about which one was at fault. Single-turn isolates the variable. The agentic harness is built and waiting — nothing is thrown away, and we turn it back on once the reward is proven to climb.</p>
+
+<h2>5. The experiment</h2>
+
+<h3>Phase 1 — Build and validate the geometric reward (no GPUs)</h3>
+<ol>
+  <li>Implement four deterministic scorers over <code>(deck.pptx, rendered PNGs)</code>: <b>off-slide overflow</b>, <b>element collision</b> (pairwise shape-box overlap), <b>visual imbalance</b> (centroid offset, horizontal weighted higher), <b>whitespace balance</b> (local pixel variance).</li>
+  <li><b>Adversarial unit test — this is the gate.</b> Score three decks: a good one, a text-padded one, and an empty one. <b>Requirement: padded must score strictly worse than good.</b> Our old reward failed exactly this test; the new one must pass before a single GPU-hour is spent.</li>
+  <li>Validity gate: unopenable/unrendered deck ⇒ reward <b>0</b> (never negative).</li>
+</ol>
+
+<h3>Phase 2 — Single-turn GRPO hill-climb</h3>
+<table>
+  <tr><th style="width:34%">Setting</th><th style="width:24%">Value</th><th>Why</th></tr>
+  <tr><td>Task format</td><td>Single-turn code-gen</td><td>Isolates the reward change from multi-turn instability</td></tr>
+  <tr><td>Rollouts per prompt (G)</td><td>8</td><td>Matches AeSlides; enough spread for group-relative advantage</td></tr>
+  <tr><td>Reward aggregation</td><td>Per-metric normalize → sum → batch-normalize</td><td>Stops any one metric being farmed</td></tr>
+  <tr><td>Invalid output</td><td><b>reward 0</b></td><td>Never create a negative floor — that's what collapsed us</td></tr>
+  <tr><td><code>loss_agg_mode</code></td><td>token-mean <span class="cite">(Dr. GRPO–style)</span></td><td>Removes GRPO's built-in length bias</td></tr>
+  <tr><td>KL penalty</td><td><b>Keep it</b> (≈0.01)</td><td>AeSlides explicitly retained KL "to prevent policy collapse into degenerate patterns"</td></tr>
+  <tr><td>Learning rate</td><td>1e-6 → 2e-6</td><td>Our 5e-6 was aggressive for a collapse-prone setup</td></tr>
+  <tr><td>Epochs / steps</td><td>1 epoch, ~20–30 steps</td><td>AeSlides trained 1 epoch</td></tr>
+</table>
+
+<h3>Phase 3 — Instrumentation (catch collapse before it happens)</h3>
+<ul>
+  <li><b>Track reward standard deviation, not just the mean.</b> In multi-turn RL, <b>reward variance collapses <i>before</i> mean reward does</b> — it is the earliest warning signal available <span class="cite">(RAGEN/StarPO, 2504.20073)</span>. Had we tracked it, we'd have seen grpo8 dying a step or two earlier.</li>
+  <li><b>Watch for gradient-norm spikes</b> — after they appear, collapse is effectively irreversible. Stop and roll back rather than hoping it recovers.</li>
+  <li><b>Log the degenerate-group rate</b> (fraction of prompts where all 8 rollouts score identically). If it exceeds ~50%, the reward is too coarse to teach anything and needs more partial credit.</li>
+  <li><b>If instability appears:</b> filter rollouts to keep only high-variance prompts — retaining 75% extended stability and 50% avoided collapse entirely in the published experiments.</li>
+</ul>
+
+<h3>Phase 4 — Re-enable the agentic loop</h3>
+<p>Once the reward demonstrably climbs single-turn, switch the multi-turn harness back on (it's built, debugged, and idle). If it destabilizes, the literature's remedy is an SFT warm-start from expert trajectories — which is exactly what the successful agentic paper did, and something we could generate with Fable.</p>
+
+<h2>6. What counts as success</h2>
+<p>Our original target was <b>+2–3%</b> on a held-out set. Against the published results that is a modest bar: AeSlides moved aspect-ratio compliance <b>+49 points</b> and cut collisions <b>31%</b>; the 7B agentic model improved <b>+33%</b> over base. A working verifiable reward produces a large, obvious climb — not a squint-at-the-noise one.</p>
+<div class="box">
+<b>Success:</b> held-out geometric score rises steadily over ≥10 steps, <b>with response length flat or falling</b>. That second condition is the real proof — it demonstrates the model is getting better at <i>layout</i> rather than at <i>producing more text</i>, which is precisely the distinction our previous reward could not make.
+</div>
+
+<h2>Sources</h2>
+<ul class="src">
+  <li><b>AeSlides: Incentivizing Aesthetic Layout in LLM-Based Slide Generation via Verifiable Rewards</b> — arXiv 2604.22840 <span class="cite">(primary blueprint: GRPO, 30B open model, 8×H100, deterministic layout rewards)</span></li>
+  <li><b>Learning to Present: Inverse Specification Rewards for Agentic Slide Generation</b> — arXiv 2603.16839 <span class="cite">(Qwen2.5-Coder-7B + GRPO, agentic, +33.1% over base)</span></li>
+  <li>Rubric reward hacking / presence-vs-absence criteria, verbosity hacking — arXiv 2605.12474</li>
+  <li>Rubrics as Rewards (RLVR as a special case of rubric rewards) — arXiv 2507.17746</li>
+  <li>Degenerate groups &amp; cardinality bias in multi-turn group RL — arXiv 2601.03525</li>
+  <li>GRPO collapse in multi-turn agentic RL with long reasoning — arXiv 2512.17008 (EACL 2026)</li>
+  <li>RAGEN / StarPO-S: Echo Trap, reward-variance early warning, variance filtering — arXiv 2504.20073</li>
+  <li>Scaling Laws for Reward Model Overoptimization — Gao, Schulman, Hilton, arXiv 2210.10760</li>
+  <li>Dr. GRPO (length-bias removal) · verl GRPO docs (<code>loss_agg_mode</code>) · DAPO (clip-higher)</li>
+  <li>PresentBench — presentbench.github.io · PPTArena — arXiv 2512.03042 · PPT-Eval — arXiv 2606.31154</li>
+</ul>
+<p class="cite" style="margin-top:10px">Method: 5 research angles → 23 primary sources → 114 extracted claims → 25 put to 3-vote adversarial verification (8 confirmed, 3 refuted, 14 unresolved when the run hit a session limit). Claims used above are either verified or quoted directly from the primary source. Two claims about AeSlides' framing were <i>refuted</i> by the adversarial pass — specifically the broad assertions that its metrics are inherently ungameable and that verifiable rewards beat agentic reflection — so those stronger claims are deliberately not relied on here; the reported numbers and reward construction are.</p>

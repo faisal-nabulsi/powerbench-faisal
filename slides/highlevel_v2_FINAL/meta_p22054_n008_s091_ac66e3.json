@@ -1,0 +1,1 @@
+{"score": 0.9082, "metrics": {"collision": 1.0, "overflow": 1.0, "imbalance": 0.5907, "textfit": 1.0, "density": 0.7627, "aspect": 1.0}, "valid": true, "resp_chars": 8128, "resp_tokens_est": 2032, "code_chars": 1434, "task": "business/slide_14", "index": 54, "n_required": 1, "seen": 54}

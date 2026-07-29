@@ -1,0 +1,1 @@
+{"score": 0.4031, "metrics": {"collision": 0.0, "overflow": 1.0, "imbalance": 0.874, "textfit": 0.9333, "density": 1.0, "aspect": 1.0}, "valid": true, "resp_chars": 26302, "resp_tokens_est": 6576, "code_chars": 2746, "task": "career/slide_4", "index": 32, "n_required": 1, "seen": 24}

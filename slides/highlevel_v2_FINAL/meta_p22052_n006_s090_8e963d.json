@@ -1,0 +1,1 @@
+{"score": 0.8975, "metrics": {"collision": 1.0, "overflow": 1.0, "imbalance": 0.7794, "textfit": 0.875, "density": 1.0, "aspect": 1.0}, "valid": true, "resp_chars": 29534, "resp_tokens_est": 7384, "code_chars": 2827, "task": "entrepreneur/slide_8", "index": 95, "n_required": 1, "seen": 42}

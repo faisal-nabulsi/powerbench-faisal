@@ -1,0 +1,1 @@
+{"score": 0.987, "metrics": {"collision": 1.0, "overflow": 1.0, "imbalance": 0.8919, "textfit": 1.0, "density": 1.0, "aspect": 1.0}, "valid": true, "resp_chars": 3250, "resp_tokens_est": 812, "code_chars": 1418, "task": "marketing/slide_10", "index": 103, "n_required": 1, "seen": 108}

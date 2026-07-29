@@ -1,0 +1,85 @@
+<title>Powerbench — training bring-up status</title>
+<style>
+  :root{
+    --paper:#fbfcfd; --ink:#161a20; --muted:#5b6470; --line:#dde3ea;
+    --accent:#1e4fc2; --accent-soft:#eef2fb; --ok:#1d7a4f; --warn:#8a5a13; --warn-soft:#fdf6e8; --bad:#a3352a;
+  }
+  body{background:var(--paper); color:var(--ink); margin:0;
+    font-family:Charter,Georgia,"Times New Roman",serif; font-size:16.5px; line-height:1.55;}
+  .wrap{max-width:47rem; margin:0 auto; padding:2.6rem 1.25rem 3.5rem;}
+  header{border-bottom:2px solid var(--ink); padding-bottom:.9rem; margin-bottom:1.3rem;}
+  .eyebrow{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:600;}
+  h1{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:1.6rem; line-height:1.2; margin:.3rem 0 .4rem; letter-spacing:-.015em; text-wrap:balance;}
+  .byline{font-size:.9rem; color:var(--muted); margin:0;}
+  h2{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:1.02rem; margin:1.8rem 0 .5rem; text-wrap:balance;}
+  h2::before{content:""; display:block; width:2rem; height:3px; background:var(--accent); margin-bottom:.5rem;}
+  p{margin:.55rem 0;}
+  .tldr{background:var(--accent-soft); border:1px solid #c9d6f2; border-radius:6px; padding:.85rem 1.15rem; margin:1.1rem 0; font-size:1.0rem;}
+  table{border-collapse:collapse; width:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:.83rem; line-height:1.4;}
+  .tablebox{overflow-x:auto; margin:.9rem 0; border:1px solid var(--line); border-radius:6px;}
+  th{text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+    border-bottom:2px solid var(--ink); padding:.5rem .6rem; background:#f3f6f9;}
+  td{border-bottom:1px solid var(--line); padding:.5rem .6rem; vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .good{color:var(--ok); font-weight:700;} .flag{color:var(--warn); font-weight:600;} .run{color:var(--accent); font-weight:700;}
+  code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.85em; background:#eef1f5; padding:.08em .3em; border-radius:3px;}
+  ul,ol{padding-left:1.2rem; margin:.5rem 0;} li{margin:.35rem 0;}
+  .evidence{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.78rem; background:#f3f6f9;
+    border:1px solid var(--line); border-radius:5px; padding:.6rem .8rem; margin:.7rem 0; overflow-x:auto; line-height:1.5;}
+  .callout{background:var(--warn-soft); border:1px solid #ecdcb8; border-radius:6px; padding:.75rem 1.05rem; margin:.9rem 0; font-size:.93rem;}
+  .step{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:.9rem;
+    border-left:3px solid var(--accent); padding:.3rem .85rem; margin:.55rem 0; background:#f7f9fb;}
+  footer{margin-top:2rem; border-top:1px solid var(--line); padding-top:.9rem;
+    font-size:.78rem; color:var(--muted); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+</style>
+<div class="wrap">
+<header>
+  <p class="eyebrow">powerbench · Phase 2 · training bring-up</p>
+  <h1>Status: we can train an open model in the env, end-to-end</h1>
+  <p class="byline">Faisal · July 20, 2026 · for Michael, Cara, Zaid · covers everything since the GPU box SSH key landed</p>
+</header>
+
+<div class="tldr"><strong>TL;DR:</strong> Starting from a fresh SSH key, I stood up the full RL training stack on 8×A100 and proved the whole pipeline works on Qwen3.6-27B — it <strong>serves</strong>, it <strong>trains</strong>, and a <strong>complete GRPO step runs end-to-end</strong> (rollout → reward → advantage → gradient update → weight sync). The SlidesBench proof-of-life hill-climb is <strong>running now</strong>. Net: Phase 2's core question — "does the environment actually train an open model?" — is answered <strong>yes</strong>; what's left is measuring the improvement and hardening.</div>
+
+<h2>What's done since the SSH key</h2>
+<div class="tablebox"><table>
+  <tr><th>Step</th><th>Result</th></tr>
+  <tr><td>Box access</td><td class="good">✓ 8×A100-80GB (after infra churn — 3 dead IPs and one terminated H100 box; rebuilt clean)</td></tr>
+  <tr><td>Full environment (vLLM + verl + torch + 27B weights)</td><td class="good">✓ built, verified, scripted for one-command rebuild</td></tr>
+  <tr><td><strong>Gate 1a</strong> — model serves</td><td class="good">✓ vLLM runs the new <code>qwen3_5</code> arch; generates correct python-pptx code</td></tr>
+  <tr><td><strong>Gate 1b (arch)</strong> — model trains</td><td class="good">✓ finite gradients through the Gated-DeltaNet layers</td></tr>
+  <tr><td><strong>Gate 1b (verl)</strong> — full GRPO loop</td><td class="good">✓ one complete training step (evidence below)</td></tr>
+  <tr><td>SlidesBench reward + dataset</td><td class="good">✓ deterministic program-scored reward wired; 186-task dataset (141 train / 45 eval)</td></tr>
+  <tr><td>GDN speedup (fla)</td><td class="flag">partial — flash-linear-attention in; two kernel builds blocked on a CUDA-13 toolchain issue</td></tr>
+  <tr><td>Proof-of-life hill-climb</td><td class="run">▶ running now — baseline eval → GRPO → post-train eval</td></tr>
+</table></div>
+
+<p><strong>The GRPO step that proves the pipeline</strong> (from the verl run, verbatim):</p>
+<div class="evidence">training/global_step: 1<br>actor/grad_norm: 0.80        &larr; the model took a real gradient update<br>critic/score/mean: 0.25 (max 1.0)  &larr; reward signal is live<br>critic/advantages: &plusmn;0.87       &larr; GRPO group-relative advantages computed<br>max GPU memory: 63.7 GB (fits A100-80GB) · step time ~225s</div>
+
+<h2>What it took (the honest version)</h2>
+<p>This was not push-button. Getting the full loop running meant working through a real gauntlet on a bleeding-edge stack (a July-2026 model architecture on a July-2026 torch/CUDA): a terminated box and full rebuild, a missing build tool, verl defaulting to an attention backend we don't have (fixed with a clean config override), a multimodal dataset that filtered itself empty, and a flash-attn library that won't compile against CUDA 13 — solved by dropping in the one pure-Python helper verl actually needs. <strong>Every fix and the exact working config is documented</strong>, and the environment rebuilds from a single script if the box dies again.</p>
+
+<h2>Where it stands right now</h2>
+<p>The hill-climb is executing: verl scores the 45 eval tasks to get a <strong>baseline</strong>, runs GRPO on the 141 training tasks with the SlidesBench reward, then re-scores the eval set. The <strong>before → after delta</strong> on that eval set is the proof-of-life (+2–3% is the bar). Baseline number lands shortly; the full run completes within the next few hours.</p>
+<div class="callout"><strong>Honest caveat on the reward:</strong> the public SlidesBench repo ships <em>instructions only, no reference decks</em>, so the exact reference-based metric can't run yet. The proof-of-life uses a program-scored proxy (execute the generated code → score text-coverage + execution + layout). It's deterministic and real, but somewhat gameable — it proves the <em>training loop moves a program-computed number</em>, which is the Phase-2 question. The honest reference-based metric and Cara's grader plug into the exact same slot once we have reference decks / the powerbench env.</div>
+
+<h2>Next 6 hours</h2>
+<div class="step"><strong>1. Finish the hill-climb &amp; report the number.</strong> Baseline vs post-train eval reward. If it climbs, that's the proof the env produces learning signal on a program-scored slide task — the Phase-2 demo in miniature.</div>
+<div class="step"><strong>2. Swap the proxy reward for the real grader.</strong> Wire Cara's deterministic OOXML grader / powerbench reward into the same <code>custom_reward_function</code> slot (needs repo access + reference templates).</div>
+<div class="step"><strong>3. Fix the CUDA-13 toolchain for full-speed kernels.</strong> Real flash-attn + causal-conv1d → the Gated-DeltaNet fast path, ~3–5× faster training (today's ~225s/step is on a torch fallback).</div>
+<div class="step"><strong>4. Scale the run.</strong> More steps + the real reward + a contamination-proof eval split, to turn proof-of-life into a real training curve for the Aug 8 pitch.</div>
+
+<h2>Asks / blockers for the team</h2>
+<ul>
+  <li><strong>Michael — powerbench repo access</strong> (my GitHub still 404s) so I can wire the real grader, and <strong>a persistent filesystem</strong> on the next box — a box died mid-work today and wiped an hour of setup; multi-hour training runs can't risk that.</li>
+  <li><strong>Reference decks / templates</strong> (Cara's library) to move off the proxy reward onto the real reference-based metric.</li>
+  <li><strong>Bot access to #pptx-benchmarks</strong> to reconcile against our own benchmark list.</li>
+</ul>
+
+<footer>Environment, every fix, and the exact working verl config are in the powerbench-faisal working folder (TODO + companion docs). Model: Qwen/Qwen3.6-27B (Apache-2.0). Stack: vLLM 0.25.1 · verl 0.8.0 · torch 2.11+cu130 · 8×A100-80GB.</footer>
+</div>

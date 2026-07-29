@@ -1,0 +1,1 @@
+{"score": 0.9856, "metrics": {"collision": 1.0, "overflow": 1.0, "imbalance": 0.8801, "textfit": 1.0, "density": 1.0, "aspect": 1.0}, "valid": true, "resp_chars": 20146, "resp_tokens_est": 5036, "code_chars": 2336, "task": "environment/slide_6", "index": 67, "n_required": 1, "seen": 36}

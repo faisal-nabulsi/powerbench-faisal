@@ -1,0 +1,21 @@
+# Third-party project clone -- this is para-lost/AutoPresent, not our work.
+# 336 MB / 12,227 files. Reference it, do not redistribute it.
+AutoPresent/
+
+# BLIND STUDY MATERIAL -- must never be public.
+# The answer key maps item_NN -> source model + grader score. Publishing it unblinds the
+# 48-slide human grading study before the raters have finished, which destroys the only
+# human-anchored calibration evidence we have.
+DO-NOT-SHARE-answerkey.json
+*answerkey*.json
+slide-grades-*.json
+
+# The grading UI embeds 48 rendered slides, 16 of them from the PPTArena human-deck corpus
+# (third-party research data), and is the live study instrument. Distributed directly to
+# raters instead.
+GRADE-48-SLIDES.html
+
+# local scratch
+__pycache__/
+*.pyc
+.DS_Store

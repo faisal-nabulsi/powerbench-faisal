@@ -1,0 +1,1 @@
+{"score": 0.4098, "metrics": {"collision": 0.0, "overflow": 0.864, "imbalance": 0.4683, "textfit": 1.0, "density": 1.0, "aspect": 1.0}, "valid": true, "resp_chars": 20827, "resp_tokens_est": 5207, "code_chars": 2587, "task": "social_media/slide_4", "index": 115, "n_required": 2, "seen": 12}

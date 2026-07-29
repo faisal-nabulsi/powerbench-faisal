@@ -1,0 +1,1 @@
+{"score": 0.7844, "metrics": {"collision": 1.0, "overflow": 0.92, "imbalance": 0.7206, "textfit": 1.0, "density": 1.0, "aspect": 0.1911}, "valid": true, "resp_chars": 39254, "resp_tokens_est": 9814, "code_chars": 2871, "task": "technology/slide_7", "index": 87, "n_required": 1, "seen": 30}

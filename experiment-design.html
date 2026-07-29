@@ -1,0 +1,164 @@
+<title>Experiment design — GRPO proof-of-life on Qwen3.6-27B</title>
+<style>
+  :root{
+    --paper:#fbfcfd; --ink:#161a20; --muted:#5b6470; --line:#dde3ea;
+    --accent:#1e4fc2; --accent-soft:#eef2fb; --ok:#1d7a4f; --warn:#8a5a13; --warn-soft:#fdf6e8; --bad:#a3352a;
+  }
+  body{background:var(--paper); color:var(--ink); margin:0;
+    font-family:Charter,Georgia,"Times New Roman",serif; font-size:16.5px; line-height:1.6;}
+  .wrap{max-width:47rem; margin:0 auto; padding:3rem 1.25rem 4rem;}
+  header{border-bottom:2px solid var(--ink); padding-bottom:1rem; margin-bottom:1.4rem;}
+  .eyebrow{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:600;}
+  h1{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:1.62rem; line-height:1.2; margin:.3rem 0 .4rem; letter-spacing:-.015em; text-wrap:balance;}
+  .byline{font-size:.9rem; color:var(--muted); margin:0;}
+  h2{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:1.02rem; letter-spacing:.01em; margin:2rem 0 .5rem; text-wrap:balance;}
+  h2 .num{color:var(--accent); font-variant-numeric:tabular-nums;}
+  h2::before{content:""; display:block; width:2rem; height:3px; background:var(--accent); margin-bottom:.5rem;}
+  h3{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:.92rem; margin:1.1rem 0 .25rem;}
+  p{margin:.6rem 0;}
+  .lead{font-size:1.02rem;}
+  .box{border:1px solid var(--line); border-radius:6px; padding:.9rem 1.15rem; margin:1rem 0; background:#f6f8fa;}
+  .hyp{background:var(--accent-soft); border:1px solid #c9d6f2; border-radius:6px; padding:.8rem 1.15rem; margin:.7rem 0;}
+  .hyp b{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  table{border-collapse:collapse; width:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:.8rem; font-variant-numeric:tabular-nums; line-height:1.4;}
+  .tablebox{overflow-x:auto; margin:1rem 0; border:1px solid var(--line); border-radius:6px;}
+  th{text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+    border-bottom:2px solid var(--ink); padding:.5rem .6rem; background:#f3f6f9; vertical-align:bottom;}
+  td{border-bottom:1px solid var(--line); padding:.5rem .6rem; vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .good{color:var(--ok); font-weight:600;} .flag{color:var(--warn); font-weight:600;} .bad{color:var(--bad); font-weight:600;}
+  code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.85em; background:#eef1f5; padding:.08em .3em; border-radius:3px;}
+  ul,ol{padding-left:1.2rem; margin:.5rem 0;} li{margin:.35rem 0;}
+  .runbook{list-style:none; padding-left:0; counter-reset:phase;}
+  .runbook > li{border-left:3px solid var(--accent); padding:.2rem 0 .6rem 1rem; margin:.3rem 0 1rem;}
+  .phase-tag{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:.7rem; font-weight:700;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--accent); display:block; margin-bottom:.2rem;}
+  .gate{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:.82rem;
+    background:var(--warn-soft); border:1px solid #ecdcb8; border-radius:5px; padding:.4rem .7rem; margin:.5rem 0;}
+  .kbd{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:.72rem; font-weight:700;
+    background:#e3efe8; color:var(--ok); padding:.1em .5em; border-radius:99px; letter-spacing:.03em;}
+  .kbd.wait{background:var(--warn-soft); color:var(--warn);}
+  footer{margin-top:2.4rem; border-top:1px solid var(--line); padding-top:1rem;
+    font-size:.79rem; color:var(--muted); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  .eq{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.82rem; background:#f3f6f9;
+    border:1px solid var(--line); border-radius:5px; padding:.6rem .8rem; margin:.7rem 0; overflow-x:auto;}
+</style>
+<div class="wrap">
+<header>
+  <p class="eyebrow">powerbench · Phase 2 pre-flight · experiment design</p>
+  <h1>GRPO proof-of-life on Qwen3.6-27B</h1>
+  <p class="byline">Faisal · July 16, 2026 · the plan we execute the moment Michael sends the model API key + SSH. Every benchmark fact below was verified against source code and papers over July 15–16.</p>
+</header>
+
+<p class="lead">This is the dress rehearsal before we point RL at our own environment. It answers one question — <strong>can we take Qwen3.6-27B and, with GRPO, move a program-scored slide benchmark by +2–3% on a measurement that can't be faked?</strong> If yes, the training plumbing, reward mapping, and honest-measurement method are all proven, and Phase 2 (powerbench) starts on July 28 with the risky parts already de-risked.</p>
+
+<h2><span class="num">1.</span> &nbsp;What this proves — and what it does not</h2>
+<p><strong>GRPO</strong> (Group Relative Policy Optimization) is our training method: the model attempts each task several times, a grader scores every attempt, and the model is nudged toward whatever scored higher. This experiment proves three things end-to-end:</p>
+<ul>
+  <li>the training loop runs on the 27B without exploding (config, memory, throughput);</li>
+  <li>a grader's numbers can be turned into a learning signal (the <em>reward mapping</em>) that actually raises the score;</li>
+  <li>we can measure the gain on a contamination-proof held-out set — i.e., the improvement is real, not memorized.</li>
+</ul>
+<p>It deliberately does <strong>not</strong> prove template-conformance or the multi-turn agent loop — those are powerbench's job. SlidesBench is single-shot slide-code generation, so it isolates the plumbing cleanly. Treat a pass here as "the machine works," not "the product works."</p>
+
+<h2><span class="num">2.</span> &nbsp;Hypotheses (stated so they can fail)</h2>
+<div class="hyp"><b>H1 — trainable zone.</b> At baseline, Qwen3.6-27B scores in a workable middle band on SlidesBench's reference-based metrics — high enough to have signal, low enough to have headroom. <em>Fails if</em> it already scores near the ceiling (nothing to learn) or near zero (no gradient to climb).</div>
+<div class="hyp"><b>H2 — the gain is real.</b> After GRPO, the 27B improves by ≥ +2–3% on the <em>perturbed</em> held-out set (defined in §5), not just the official one. <em>Fails if</em> gains appear only on the official set (= memorization) or nowhere.</div>
+<div class="hyp"><b>H3 — eval sanity.</b> The 27B's baseline lands sensibly against SlidesBench's <em>published</em> leaderboard (GPT-4o, the paper's own trained model) — not absurdly high, not on the floor. This confirms our scoring pipeline is wired correctly before we trust any training delta. It costs nothing — a comparison to numbers already in the paper, not a second model we have to run.</div>
+
+<h2><span class="num">3.</span> &nbsp;Model &amp; input mode</h2>
+<div class="tablebox"><table>
+  <tr><th>Model</th><th>Role</th><th>Serving</th><th>Input mode</th></tr>
+  <tr><td><strong>Qwen3.6-27B</strong></td><td>Train target — the only model we run</td><td>vLLM on Michael's GPU box (needs SSH)</td><td>With-image (native)</td></tr>
+</table></div>
+<p><strong>One model, on purpose.</strong> A proof-of-life needs exactly the model we intend to train — nothing else. We are <em>not</em> running a big second model as a yardstick: it would be too large and expensive to be worth it here, and we don't need one to prove the loop works. The sanity check comes from SlidesBench's own published leaderboard instead (H3), which costs nothing.</p>
+<p><strong>Input mode:</strong> SlidesBench ships three instruction variants — with-image, high-level, and no-image. We run the 27B on the <strong>with-image</strong> variant: it's vision-capable, and this mirrors how the real pptx skill's render→look→fix loop actually works. We'll also record the <code>no_image</code> score as a harder reference point.</p>
+
+<h2><span class="num">4.</span> &nbsp;Benchmark &amp; metrics — what we score, what we throw out</h2>
+<p>Target: <strong>SlidesBench</strong> (from the AutoPresent paper). The model writes Python that builds a <code>.pptx</code>; we execute it and score the result. Verified by reading <code>evaluate/page_eval.py</code> directly — these four metrics are deterministic <code>.pptx</code>-vs-<code>.pptx</code> comparisons with no AI in the loop:</p>
+<div class="tablebox"><table>
+  <tr><th>Metric</th><th>What it checks</th><th>Use?</th></tr>
+  <tr><td>Execution success</td><td>Did the generated code run and produce a valid pptx?</td><td class="good">Yes — reward gate</td></tr>
+  <tr><td>Text similarity</td><td>Does the slide text match the reference?</td><td class="good">Yes</td></tr>
+  <tr><td>Color similarity (CIEDE2000)</td><td>Are colors within perceptual distance of the reference?</td><td class="good">Yes</td></tr>
+  <tr><td>Position similarity</td><td>Are elements placed where the reference has them?</td><td class="good">Yes</td></tr>
+  <tr><td>Element / block match</td><td>Are the right elements present (max-matching)?</td><td class="good">Yes</td></tr>
+  <tr><td>Reference-free "design quality"</td><td>Overall aesthetic judgment</td><td class="bad">No — GPT-4o-judged, not deterministic</td></tr>
+  <tr><td>CLIP image-similarity</td><td>Visual embedding match</td><td class="bad">No — model-based, hackable</td></tr>
+</table></div>
+<p>We score on the <strong>reference-based deterministic family only</strong>. Dropping the two model-based metrics is what keeps the reward un-gameable and the +2–3% a fact rather than an opinion.</p>
+
+<h2><span class="num">5.</span> &nbsp;Contamination controls — the honest-measurement method</h2>
+<p>SlidesBench has been public since January 2025, ~15 months before the 27B's April 2026 release, and Alibaba publishes no data cutoff — so the model may have seen the test answers. We neutralize this two ways. (Reminder: contamination only poisons the <em>measurement</em>; training on seen data is fine — it's what fine-tuning is.)</p>
+<h3>5a. Memorization probe (~30 min, run first)</h3>
+<p>Feed each model half of a test instruction and see if it completes the reference verbatim; and check whether baseline scores sit implausibly above the published state of the art. Either signal ⇒ the official test set is contaminated and we lean entirely on the perturbed set below.</p>
+<h3>5b. Perturbed held-out set (the real eval, ~½ day to build)</h3>
+<p>Take ~50 test tasks and programmatically alter each reference slide, then <em>regenerate the instruction from the altered slide</em> so the task stays self-consistent. Memorized answers are now wrong by construction. Operators:</p>
+<ul>
+  <li><strong>Color</strong> — shift each themed color by a controlled perceptual distance (swap palette entry / rotate hue).</li>
+  <li><strong>Text</strong> — replace titles/body with novel strings, same structure.</li>
+  <li><strong>Position</strong> — translate element bounding boxes.</li>
+  <li><strong>Element count</strong> — add or drop a required element.</li>
+</ul>
+<p>Close the loop with SlidesBench's own <code>create_dataset.py</code> / <code>seed_instruction.py</code> — perturb the reference, regenerate its instruction, re-score. This is also how we'll <strong>mint our own training tasks</strong> (the official 7k download is broken; unofficial mirrors are unknown fidelity). <span class="flag">Pre-check:</span> confirm the deterministic metrics don't produce degenerate scores under our operators before trusting the numbers — the one open question the verification pass flagged. Report official <em>and</em> perturbed scores side by side; if they diverge, the perturbed number is the truth.</p>
+
+<h2><span class="num">6.</span> &nbsp;Training setup</h2>
+<ul>
+  <li><strong>Framework:</strong> verl (GRPO is first-class; the Qwen3-MoE family is its worked example). <strong>Method:</strong> LoRA-GRPO — train small add-on layers, not all 27B weights, so it fits the box and the window.</li>
+  <li><strong>Group size:</strong> 8 rollouts per prompt to start (matches our k=8 convention and AeSlides' setup), advantage = reward minus group mean.</li>
+  <li><strong>Starting knobs to tune in Gate 1:</strong> LoRA rank ~32, one epoch over the minted train set, response cap sized to a slide program (~4–8k tokens). These are starting points, not commitments — Gate 1 exists to tune them.</li>
+</ul>
+<h3>Reward mapping (Q2 — I draft, Cara checks for hackability)</h3>
+<p>Turn the metrics into one number per attempt, with execution as a hard gate so broken code earns nothing:</p>
+<div class="eq">reward = 0&nbsp;&nbsp;if code fails to execute or yields no valid pptx<br>reward = w<sub>text</sub>·text + w<sub>color</sub>·color + w<sub>pos</sub>·position + w<sub>elem</sub>·element&nbsp;&nbsp;otherwise&nbsp;&nbsp;(weights sum to 1, each term in [0,1])</div>
+<p><strong>Anti-hacking notes:</strong> give <code>element</code> real weight so the model can't win with an empty slide that trivially matches on color; keep weights blunt (no per-task tuning that invites overfitting). This mirrors powerbench's eventual mapping (per-check booleans → weighted scalar), so whatever we learn about weights and hackability here transfers straight to Phase 2 — that's a deliberate design choice, not a coincidence.</p>
+
+<h2><span class="num">7.</span> &nbsp;Runbook — gated on access, not the calendar</h2>
+<ol class="runbook">
+  <li><span class="phase-tag">Phase 0 — now &nbsp;<span class="kbd">no access needed</span></span>
+    Harness ready (already cloned + venv built). Write the perturbation operators and the reward function; template the verl GRPO config; wire cost tracking + resume-on-failure into the rollout orchestration. Deliverable: a dry-run that scores a hand-made pptx against a reference locally.</li>
+  <li><span class="phase-tag">Phase 1 — when Michael sends the API key &nbsp;<span class="kbd wait">waiting</span></span>
+    Memorization probe (§5a) on the 27B. Baseline eval on the 27B (with-image + no-image), official + perturbed sets, compared against SlidesBench's published leaderboard. <strong>Answers H1 and H3.</strong> This is also powerbench Gate 2 input: does the 27B land in the workable band?</li>
+  <li><span class="phase-tag">Phase 2 — when Michael sends SSH to the GPU box &nbsp;<span class="kbd wait">waiting</span></span>
+    Stand up vLLM serving for the 27B. Run <strong>Gate 1</strong> (tiny verl step — confirm the Gated-DeltaNet architecture trains; likely per docs, but verified hands-on). Then the GRPO proof-of-life run on the minted train set. <strong>Answers H2.</strong></li>
+  <li><span class="phase-tag">Phase 3 — read the result</span>
+    Compare pre- vs post-training on the perturbed set. Report the curve honestly (a real +1% beats a fabricated +5%). Hand the reward-mapping + hackability findings to Cara for the powerbench mapping.</li>
+</ol>
+<div class="gate"><strong>Gate 1 (trainability):</strong> tiny verl run completes a step on the 27B → proceed. Fails → fall back to Kimi K2.7-Code on Fireworks RFT, no fighting it.</div>
+<div class="gate"><strong>Gate 2 (band entry):</strong> 27B lands in the workable middle band at baseline → proceed to train. Scores near-zero everywhere → too weak, fall back. Saturates → switch to a harder eval slice.</div>
+
+<h2><span class="num">8.</span> &nbsp;Decision rules — what each outcome means</h2>
+<div class="tablebox"><table>
+  <tr><th>Result</th><th>Reading</th><th>Action</th></tr>
+  <tr><td>≥ +2–3% on perturbed set</td><td class="good">Proof-of-life achieved</td><td>Plumbing proven; carry reward mapping into powerbench Phase 2</td></tr>
+  <tr><td>Gain on official set only, not perturbed</td><td class="flag">Memorization, not learning</td><td>Trust perturbed number; investigate reward before Phase 2</td></tr>
+  <tr><td>No gain anywhere</td><td class="bad">Plumbing or reward broken</td><td>Debug loop on the 235B sibling; don't burn the window on the big model</td></tr>
+  <tr><td>Gate 1 fails (can't train 27B)</td><td class="bad">Architecture unsupported</td><td>Fireworks RFT + Kimi K2.7-Code within 24h</td></tr>
+  <tr><td>27B baseline near published SOTA</td><td class="good">Pipeline wired right</td><td>Trust the deltas; proceed</td></tr>
+</table></div>
+
+<h2><span class="num">9.</span> &nbsp;Risks &amp; mitigations</h2>
+<ul>
+  <li><strong>SlidesBench repo is unmaintained</strong> (no commits since May 2025, 8 open issues incl. a quickstart crash). → We own the fixes; harness already runs in our venv; mint tasks with the repo's own scripts rather than the broken download.</li>
+  <li><strong>Perturbation could break the metrics</strong> (degenerate scores). → Pre-check metric stability on a handful of perturbed tasks before building all 50 (§5b).</li>
+  <li><strong>Gated-DeltaNet unsupported in verl.</strong> → Gate 1 catches it in 30 minutes; Fireworks fallback ready.</li>
+  <li><strong>Single-turn ≠ powerbench's multi-turn.</strong> → Acknowledged scope limit; the multi-turn path is exercised by the powerbench smoke test, not here.</li>
+  <li><strong>Contamination unmeasurable precisely</strong> (cutoff unpublished). → The perturbed set sidesteps it entirely; we don't need the cutoff.</li>
+</ul>
+
+<h2><span class="num">10.</span> &nbsp;Compute, cost &amp; what we need from Michael</h2>
+<p><strong>Compute:</strong> Phase 1 is hosted-API inference for the 27B (small — hundreds of short generations; a few dollars on credits). Phase 2 GRPO is a single 8-GPU node (the 27B fits with room for 8 parallel rollouts). No multi-node cluster — that's the whole reason we're training the 27B and nothing bigger.</p>
+<p><strong>Blocking on Michael:</strong></p>
+<ul>
+  <li><span class="kbd wait">needed</span> Model <strong>API key</strong> → unblocks Phase 1 (baseline + probe).</li>
+  <li><span class="kbd wait">needed</span> <strong>SSH</strong> to the GPU box → unblocks Phase 2 (serving + training).</li>
+  <li>GitHub invite to <code>powerbench</code> (still 404s for my account) and bot access to <code>#pptx-benchmarks</code> to reconcile against the team's own list.</li>
+</ul>
+<p>Everything in Phase 0 proceeds now, without any of the above.</p>
+
+<footer>Companion to <em>model-recommendation.pdf</em> (train the 27B) and <em>benchmark-guide.pdf</em> (why SlidesBench + perturbation). Sources verified July 15–16, 2026: AutoPresent/SlidesBench arXiv 2501.00912 + repo code (page_eval.py, create_dataset.py read directly) · verl GRPO docs + Qwen3-MoE best-practices · AeSlides arXiv 2604.22840 + repo (train set / code confirmed withheld — demoted to methods reference) · Qwen3.6-27B card/blog (no cutoff or decontamination statement) · Fireworks RFT docs (Kimi K2 fallback). Three adversarial verification passes, 200+ sources fetched.</footer>
+</div>

@@ -1,0 +1,1 @@
+{"score": 0.8527, "metrics": {"collision": 1.0, "overflow": 0.9667, "imbalance": 0.9847, "textfit": 1.0, "density": 0.3047, "aspect": 1.0}, "valid": true, "resp_chars": 8929, "resp_tokens_est": 2232, "code_chars": 1336, "task": "food/slide_20", "index": 82, "n_required": 1, "seen": 72}

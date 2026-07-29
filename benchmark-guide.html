@@ -1,0 +1,117 @@
+<title>Benchmark guide — powerbench sprint</title>
+<style>
+  :root{
+    --paper:#fbfcfd; --ink:#161a20; --muted:#5b6470; --line:#dde3ea;
+    --accent:#1e4fc2; --accent-soft:#eef2fb; --ok:#1d7a4f; --warn:#8a5a13; --warn-soft:#fdf6e8;
+  }
+  body{background:var(--paper); color:var(--ink); margin:0;
+    font-family:Charter,Georgia,"Times New Roman",serif; font-size:17px; line-height:1.6;}
+  .wrap{max-width:46rem; margin:0 auto; padding:3rem 1.25rem 4rem;}
+  header{border-bottom:2px solid var(--ink); padding-bottom:1rem; margin-bottom:1.5rem;}
+  .eyebrow{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:600;}
+  h1{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:1.7rem; line-height:1.2; margin:.3rem 0 .4rem; letter-spacing:-.015em; text-wrap:balance;}
+  .byline{font-size:.9rem; color:var(--muted); margin:0;}
+  h2{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:1.02rem; letter-spacing:.01em; margin:2.2rem 0 .6rem; text-wrap:balance;}
+  h2::before{content:""; display:block; width:2rem; height:3px; background:var(--accent); margin-bottom:.5rem;}
+  h3{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:.95rem; margin:1.3rem 0 .3rem;}
+  p{margin:.65rem 0;}
+  .versus{display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0;}
+  .versus > div{border:1px solid var(--line); border-radius:6px; padding:.9rem 1.1rem; font-size:.95rem;}
+  .versus .prog{background:#f2f7f4; border-color:#cfe3d7;}
+  .versus .judge{background:var(--warn-soft); border-color:#ecdcb8;}
+  .versus h3{margin:0 0 .4rem;}
+  table{border-collapse:collapse; width:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:.78rem; font-variant-numeric:tabular-nums; line-height:1.45;}
+  .tablebox{overflow-x:auto; margin:1rem 0; border:1px solid var(--line); border-radius:6px;}
+  th{text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+    border-bottom:2px solid var(--ink); padding:.5rem .55rem; background:#f3f6f9;}
+  td{border-bottom:1px solid var(--line); padding:.5rem .55rem; vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .flag{color:var(--warn); font-weight:600;}
+  .good{color:var(--ok); font-weight:600;}
+  .bad{color:#a33; font-weight:600;}
+  .callout{background:var(--accent-soft); border:1px solid #c9d6f2; border-radius:6px; padding:.8rem 1.1rem; margin:1rem 0; font-size:.95rem;}
+  .warnbox{background:var(--warn-soft); border:1px solid #ecdcb8; border-radius:6px; padding:.8rem 1.1rem; margin:1rem 0; font-size:.95rem;}
+  ul,ol{padding-left:1.2rem; margin:.6rem 0;}
+  li{margin:.4rem 0;}
+  blockquote{margin:.8rem 0; padding:.5rem 1rem; border-left:3px solid var(--accent); background:#f3f6f9; font-size:.95rem;}
+  footer{margin-top:2.5rem; border-top:1px solid var(--line); padding-top:1rem;
+    font-size:.8rem; color:var(--muted); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.85em; background:#eef1f5; padding:.08em .3em; border-radius:3px;}
+</style>
+<div class="wrap">
+<header>
+  <p class="eyebrow">powerbench · benchmark landscape</p>
+  <h1>Benchmark guide: what's out there, how each is scored, and what we use</h1>
+  <p class="byline">Faisal · July 16, 2026 (rev. 2, after the adversarial verification pass) · companion to the model decision memo. Every date and scoring claim below was verified against the paper, repo, or dataset page this week; the plan-critical claims were additionally re-verified by reading the actual code.</p>
+</header>
+
+<h2>The key concept: program-scored vs. judge-scored</h2>
+<p>Every benchmark needs a way to decide how good an output is. There are only two ways to do it, and the difference drives every decision in this document.</p>
+<div class="versus">
+  <div class="prog">
+    <h3>Program-scored</h3>
+    <p>A piece of <strong>code</strong> computes the score. It checks facts about the file: did the generated code run? Does the slide contain the required text? Do two boxes overlap? Is the color the exact hex the theme demands?</p>
+    <p>Same input → same score, every single time. Costs nothing to run. Cannot be sweet-talked.</p>
+  </div>
+  <div class="judge">
+    <h3>Judge-scored</h3>
+    <p>Another <strong>AI</strong> looks at the output and gives an opinion — a rubric grade, a 0–5, a "which of these two is better." (Also called "LLM-as-judge" or "VLM-as-judge" when the judge looks at images.)</p>
+    <p>Scores wobble between runs. Costs an API call every time. Can be impressed, and therefore fooled.</p>
+  </div>
+</div>
+<p><strong>Why this matters so much for us — three reasons:</strong></p>
+<ol>
+  <li><strong>Training cost.</strong> GRPO works by scoring thousands of attempts and nudging the model toward the good ones. A program scores each attempt for free in milliseconds. A judge charges frontier-API prices per attempt — the reward bill can exceed the training bill.</li>
+  <li><strong>Reward hacking.</strong> A model being trained will learn to exploit whatever scores it. You cannot fool a program that greps the XML for a missing footer. You <em>can</em> learn to impress a judge — flashier layouts, confident wording — without actually getting better. The trained model looks improved and isn't.</li>
+  <li><strong>Credibility.</strong> "+3% on a program-computed metric" is a fact anyone can re-run. "+3% in the opinion of GPT-5" is an argument. Our entire pitch rests on this distinction — Michael's grader is deterministic OOXML checks precisely so no one can dispute the baseline.</li>
+</ol>
+<p>One subtlety: some benchmarks are <strong>hybrid</strong>, and some judge-scored ones dress up as programmatic. PPTArena feeds "structural diffs" to its judges — but the program only <em>prepares evidence</em>; the AI still <em>decides the grade</em>. That's judge-scored. The test is: who produces the final number, code or a model?</p>
+
+<h2>The three filters for a trainable benchmark</h2>
+<ol>
+  <li><strong>Program-scored</strong> — otherwise the reward is expensive and hackable (above).</li>
+  <li><strong>Training tasks exist</strong> — GRPO needs tasks to practice on; an eval-only set of 120–800 tasks gives nothing to train against.</li>
+  <li><strong>Contamination-safe measurement.</strong> Qwen3.6-27B was released April 22, 2026, and Alibaba publishes <em>no data cutoff and no decontamination statement</em> (we checked the card, blog, GitHub, and all 47 HF discussions). So any benchmark published much before April 2026 may be in its training data. Crucial nuance: <strong>contamination only poisons the measurement, never the training</strong> — training on data the model has seen is what fine-tuning is. The <em>held-out eval</em> is what must be clean.</li>
+</ol>
+
+<h2>The full landscape (verified July 2026)</h2>
+<div class="tablebox"><table>
+  <tr><th>Benchmark</th><th>Date</th><th>Task</th><th>Scoring</th><th>Train data</th><th>Clean for 27B?</th><th>Our use</th></tr>
+  <tr><td><strong>SlidesBench</strong> (AutoPresent)</td><td>Jan 2025</td><td>Make one pptx slide from an instruction (code-gen)</td><td class="good">Program (execution + text/color/position match)</td><td class="good">7,000 tasks</td><td class="bad">No — 15 mo. exposure</td><td><strong>Training proof-of-life</strong> (eval on perturbed set)</td></tr>
+  <tr><td><strong>AeSlides</strong></td><td>Apr 21, 2026</td><td>Generate HTML slides; layout quality</td><td class="good">Program only (aspect, whitespace, collisions, balance)</td><td class="bad">5,704 tasks — NOT released ("proprietary constraints")</td><td class="good">Yes — provably</td><td><strong>Methods reference only</strong> — code + train set withheld; recipe ideas transfer</td></tr>
+  <tr><td><strong>PPT-Eval</strong> (Microsoft, ICML)</td><td>Jun 30, 2026</td><td>Edit/create in real PowerPoint (GUI + API agents)</td><td>Hybrid — <span class="good">59/120 tasks fully deterministic</span>, rest Claude-judged</td><td class="bad">None (eval-only, by design)</td><td class="good">Yes</td><td>Clean pptx <strong>eval checkpoint</strong> (the 59 deterministic tasks)</td></tr>
+  <tr><td><strong>PPTArena</strong> (editing; Ofengenden)</td><td>Dec 2025</td><td>800+ in-place edits on 100 real decks, incl. master styles</td><td class="flag">Judge (GPT-5 + Gemini, dual VLM)</td><td class="bad">None</td><td>Mostly (4 mo. window)</td><td><strong>External comparison eval</strong> for 27B vs 480B; cite in report</td></tr>
+  <tr><td>PresentBench</td><td>Mar 2026</td><td>Deck from background materials (238 instances)</td><td class="flag">Judge (Gemini, ~54 checklist items each)</td><td class="bad">None</td><td>Borderline</td><td>Read for failure modes; cite headroom (best system 62.5)</td></tr>
+  <tr><td>UniPPTBench</td><td>May 17, 2026</td><td>Deck from vague prompt / long doc / multi-source (126 tasks)</td><td class="flag">Judge (Gemini 3 Flash)</td><td class="bad">None; data not yet released</td><td class="good">Yes</td><td>Not usable yet — watch</td></tr>
+  <tr><td>X+Slides</td><td>Jun 17, 2026</td><td>Audience-conditioned decks (8,133 probes)</td><td class="flag">Judge + formulaic aggregation</td><td class="bad">None</td><td class="good">Yes</td><td>Not used</td></tr>
+  <tr><td>DECKBench</td><td>Feb 2026</td><td>Paper→HTML deck + 5-turn editing (294 pairs)</td><td>Mixed (CLIP/embedding + judge)</td><td class="bad">None</td><td>Probably</td><td>Not used (HTML, non-commercial license)</td></tr>
+  <tr><td>SlideRL / Learning-to-Present</td><td>Mar 2026</td><td>RL env, HTML slides via tool use</td><td>Mixed (structural checks + judge aesthetics)</td><td>288 trajectories</td><td>Borderline</td><td>Reference for env design</td></tr>
+  <tr><td>SlidesGen-Bench</td><td>Jan 2026</td><td>Slide quality metrics (content/aesthetics/editability)</td><td class="good">Program (computational metrics)</td><td>Human-pref data</td><td>Borderline (3 mo.)</td><td>Possible extra reward components</td></tr>
+  <tr><td>SWE-rebench (off-domain)</td><td>monthly → Mar 2026</td><td>Fix real GitHub issues</td><td class="good">Program (tests pass/fail)</td><td>21k tasks (stale: ≤Apr 2025)</td><td>2026 eval splits: yes</td><td>Off-domain fallback only</td></tr>
+  <tr><td><strong>powerbench</strong> (ours)</td><td>Jul 2026</td><td>Template + source text → conforming deck</td><td class="good">Program (8 OOXML checks) + separate LLM content check</td><td class="good">Task generator (ours)</td><td class="good">Yes — private</td><td><strong>The real benchmark</strong> — everything above is rehearsal</td></tr>
+</table></div>
+
+<h2>What we're doing with each — the plan</h2>
+<ul>
+  <li><strong>Train on SlidesBench, measure on a perturbed set — confirmed viable at code level, with three requirements.</strong> A verification pass (July 16) read the actual eval code: the reference-based metrics (text similarity, color via CIEDE2000, position, element matching in <code>evaluate/page_eval.py</code>) are deterministic pptx-vs-pptx comparisons with no judge — so "perturb the reference, re-score" works directly. Requirements: (1) <em>use only that reference-based family</em> — the reference-free eval is GPT-4o-judged and one metric uses CLIP; exclude both; (2) <em>budget for self-fixing a dead repo</em> — no commits since May 2025, 8 open issues including a README-following crash nobody answered; (3) <em>source training tasks ourselves</em> — the official 7k download path is broken (users trade unofficial 31 GB mirrors). Cleanest fix: mint our own training tasks with the repo's <code>create_dataset.py</code> from decks we choose — which also fixes the fact that the official test pool comes from just 10 decks.</li>
+  <li><strong>AeSlides is demoted to a methods reference — it cannot be run.</strong> Despite the paper claiming a public release, the repo explicitly withholds the full system ("proprietary constraints"): no train set (the only HF dataset is a 2,056-row preference bench), no reward pipeline, no training configs; the recipe ran on slime (not verl) with a 30B-<em>MoE</em> (3B active — not a dense-27B analog); and its headline programmatic gains are circular (eval metrics = training rewards; the paper documents patching reward hacking). What still transfers: the +7.6% <em>human-eval</em> gain de-risks our +2–3% target directionally, verl natively supports its RL tricks (clip-higher, token-level loss, GSPO, KL), and its reward-normalization snippets are reusable.</li>
+  <li><strong>PPTArena (editing) is the head-to-head eval</strong> for 27B vs 480B — closest public task to ours, contamination-clean for the 480B. Judge-scored, so it is never a training reward; judge bills go on the OpenAI hackathon credits.</li>
+  <li><strong>PPT-Eval's 59 deterministic tasks</strong> are a free, provably-clean pptx eval checkpoint for both models. <span class="flag">Not yet verified hands-on:</span> whether they run standalone against an API agent (vs. their GUI sandbox) — one hour with the repo settles it; same for PPTArena's per-task judge cost. Both checks are scheduled before we spend on either.</li>
+  <li><strong>powerbench is the benchmark that matters.</strong> Private (zero contamination by construction), program-scored, in-domain. The July 24 k=8 baseline is the number the pitch stands on.</li>
+</ul>
+
+<div class="warnbox"><strong>Naming trap for the team:</strong> "PPTArena" is two different things. (1) The Dec 2025 deck-<em>editing</em> benchmark by Ofengenden et al. (VLM-judged, 100 decks) — the one in our table. (2) Microsoft's computer-use benchmark, which was <em>renamed to PPT-Eval</em> for ICML 2026 (leftover "PPTArena" strings are still in their camera-ready). Don't conflate them in the report.</div>
+
+<h2>Ammunition for the Anthropic pitch</h2>
+<ul>
+  <li><strong>The gap we fill is documented, not claimed.</strong> Verified negative from the sweep: as of July 2026, <em>no pptx-native RL environment with programmatic rewards exists</em> — all published slide-RL work (AeSlides, SlideRL) is HTML-based. Powerbench is first.</li>
+  <li><strong>Microsoft says the quiet part out loud.</strong> From PPT-Eval's own limitations: hand-built rubrics require so much human editing it is <em>"preventing us from scaling arbitrarily, which would be useful in agent training scenarios (e.g., reinforcement learning)."</em> Our deterministic template-conformance grader is exactly the thing they say can't be scaled — because they graded aesthetics with judges, and we grade conformance with code.</li>
+  <li><strong>The domain is externally confirmed unsaturated:</strong> Claude Sonnet 4 ≈43% success on PPTArena editing; Claude 4.5 Opus 45% success on PPT-Eval (humans: 80%); best system on PresentBench scores 62.5/100. Deck editing is hard for everyone — it's not a quirk of our grader.</li>
+</ul>
+
+<footer>Sources (all fetched/verified July 15–16, 2026): AutoPresent/SlidesBench arXiv 2501.00912 + repo · AeSlides arXiv 2604.22840 + github.com/ympan0508/aeslides · PPT-Eval arXiv 2606.31154 + github.com/microsoft/PPTEval (ICML 2026) · PPTArena (editing) arXiv 2512.03042 + github.com/michaelofengend/PPTArena · PresentBench arXiv 2603.07244 + HF dataset · UniPPTBench arXiv 2605.17356 · X+Slides arXiv 2606.19256 + github.com/OpenDataBox/X-SlidesBench · DECKBench arXiv 2602.13318 · SlideRL arXiv 2603.16839 · SlidesGen-Bench arXiv 2601.09487 · SWE-rebench (nebius, HF) · Terminal-Bench 2.1/Harbor · Qwen3.6-27B card/blog/GitHub (no cutoff or decontamination statement found). Research: two multi-agent verification sweeps, 30+ sources fetched directly.</footer>
+</div>

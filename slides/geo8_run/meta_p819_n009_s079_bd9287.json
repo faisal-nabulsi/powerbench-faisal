@@ -1,0 +1,1 @@
+{"score": 0.3973, "metrics": {"collision": 0.0, "overflow": 0.8816, "imbalance": 0.7831, "textfit": 1.0, "density": 0.7407, "aspect": 1.0}, "valid": true, "resp_chars": 43117, "resp_tokens_est": 10779, "code_chars": 3898, "task": "art_photos/slide_8", "index": 144, "n_required": 4, "seen": 60}
