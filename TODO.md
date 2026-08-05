@@ -1,4 +1,8 @@
 # Faisal — powerbench sprint task list
+
+> **Note:** blind-study item IDs are redacted in the public copy until all raters
+> have finished grading. The unblinding analysis lives in the gitignored
+> `DO-NOT-SHARE-faisal-vs-grader.md`.
 *(compiled 2026-07-15 from the Slack recaps + the Goldilocks workplan PDF in Drive; workplan is the authoritative source for dates)*
 
 ## 🔄 STRATEGY PIVOT 2026-07-21 — "use the harnesses; give our model Fable's ppt skills"
@@ -204,3 +208,119 @@ of rollouts score 0 for being cut off rather than for bad layout).
 - `slide-gallery-by-run.html` / artifact `a2c471dd` — **split by run** with config comparison.
 - `reward-review.pdf`, `pptx-hillclimb-design.pdf` on Desktop.
 - Grader + reward code mirrored in `reward/` (survives box loss).
+
+---
+
+## 2026-07-30 — blind study rater 1 (Faisal) unblinded vs grader
+
+Faisal graded all 48 items (`~/Desktop/slide-grades-faisal.json`). Full analysis in
+`DO-NOT-SHARE-faisal-vs-grader.md` (gitignored — **do NOT share until Michael + Cara grade**;
+gitignore broadened to `DO-NOT-SHARE*` since `blind_study/` is tracked in the public repo).
+
+**Headline: grader ranks our own model's decks at Spearman ≈ 0.00 (n=16) — the reward can't
+order same-policy rollouts, which is exactly the signal GRPO consumes.** Human source ranking:
+Fable-agentic 9.0 > Fable-ST 7.9 > PPTArena human 7.4 > **ours 6.6 (last)**; grader inverts
+this (scores ours 0.72 > human decks 0.60). What's validated: collision/overflow (overlap-
+flagged 0.52 vs 0.71 unflagged; clipped 0.61 vs 0.71). What's broken: **empty-content hole
+confirmed empirically** — human-flagged "empty" items grader-average 0.716 vs 0.690 unflagged
+(item_[redacted] empty chart 0.97, item_[redacted] "no info" 0.94, item_[redacted] 0.91; 3 of 4 worst are OUR decks →
+the trained policy already exploits it). Aspect underweighted vs human judgment (item_[redacted]:
+human 2/10, grader 0.70). PPTArena decks are off-distribution for the grader (item_[redacted] dense
+poster 0.13 vs human 8) — never quote the grader cross-corpus.
+
+**Gate before next GRPO run:** (1) content-existence term that sees non-text ink (chart data
+series, image/shape fills, near-blank render penalty); (2) new gate fixtures: empty-chart +
+monochrome-blank (old gate passed while this hole was open); (3) v2 render-grader still owes
+the 64-concurrent-soffice load test. Caveat: n=1 rater, restricted range within ours_s30 —
+await Michael/Cara before final calls. Box `<GPU_BOX_IP>` alive + idle (8×A100, 0 MiB).
+
+### 2026-07-30 (cont.) — gate items 1–3 DONE. Discovered geometric_reward is already v2.
+
+**Key discovery:** the repo's `reward/geometric_reward.py` is already **v2 (2026-07-29)** — it
+added a render-based `content` term (`detail_cov`, rho +0.544) + `clipping`, built against the
+45 blind-graded audit decks. The blind-study answer key I analyzed was **v1 (Jul 28)**, before
+that term. So my "empty-deck hole" finding was against v1; v2 was unvalidated on these cases.
+Core files (`geometric_reward.py`, `render_metrics.py`, `geom_shapes.py`) are **byte-identical
+box↔local**, so no version-split.
+
+**(2) Fixtures added + (1) verified — v2 half-closed the hole, I closed the rest:**
+- Added two adversarial fixtures to `make_fixtures.py` + wired as ENFORCED gate checks in
+  `gate_test.py`: **`empty_chart`** (title + all-zero-data chart — its axes/gridlines/legend
+  are dense edges = high `detail_cov`; faithful to blind item_[redacted] "the chart is empty") and
+  **`sparse`** (title + one line, monochrome; faithful to item_[redacted]/35).
+- **First gate run (v2 as-is):** `sparse` correctly caught (content 0.00, score 0.386 — a
+  truly bare slide has almost no edges, so the low end works). But **`empty_chart` scored
+  0.7430 vs good 0.7677 — margin 0.025, essentially TIED**, with **content=0.98**: detail_cov
+  is fully fooled by chart chrome. The empty-chart exploit was still a ~0.74 free win → open
+  hole, exactly item_[redacted]. `detail_cov` measures rendered EDGES; chrome and bars are both edges,
+  so pixels can't see it and geometry can't (chart = one well-placed box). Only the DATA can.
+- **FIX (render-free, in `geometric_reward.py`):** new `score_chart_content()` reads
+  `shape.chart.plots[].series[].values` via python-pptx; a chart is "empty" if no series has a
+  value not in (None, 0). New `chart_ok` = fraction of charts with real data (=1.0 when no
+  charts → text slides untouched, zero dead weight). Two hooks: (a) when charts are all empty,
+  **cap render `content` to floor 0.15** (chrome cannot certify content); (b) **`chart_ok`
+  joins the critical soft-min set**, so an empty chart trips the catastrophe gate.
+- **Re-gate: `empty_chart` 0.7430 → 0.3348** (margin below good 0.025 → 0.433; now sits with
+  empty 0.06 / padded 0.08 / sparse 0.39). **`good` UNCHANGED at 0.7677** and every other
+  fixture identical — zero collateral. `grader_tests.py` all pass (finite, deterministic
+  0.9036, 29.8 ms/deck); `compute_score` fixed-key schema intact (no raise with new key).
+
+**(3) 64-concurrent render load test: GO** (`reward/loadtest_render.py`, mirrored local; ran
+`/tmp/loadtest.log` on box). Worst case = 64 truly-concurrent soffice renders of real PPTArena
+decks. **Wall-clock 75.5s = 3% of a 37-min step; 64/64 succeeded** (per-render private-profile
+fix kills the geo2 race); **peak load 37 on 240 cores, peak 37 GB of 1771 GB, worst
+responsiveness ping 192 ms** (wedged threshold 1000). The geo2 unreachable-box failure is
+closed ON THIS BOX. **Residual caveat (honest):** test ran with GPUs idle / no concurrent
+training; real training adds actor CPU-offload pressure. But render footprint is tiny (37
+load / 37 GB) against this box's 240c / 1771 GB, so headroom should absorb it — watch host
+load on the first real step. Batched path (`score_render_batch`) not even needed; naive
+concurrent is already 3%.
+
+**NET: all three pre-train gates cleared. The reward can now tell empty charts, blank slides,
+padded walls, and monochrome-sparse decks from a good deck, and the render grader is
+host-safe.** Still owed before declaring victory: Michael + Cara's blind grades (turn n=1 →
+n=3), then a training run watching held-out + response-length + the new `chart_ok`/content
+metrics. Reward analysis (v1-based, keep private): `DO-NOT-SHARE-faisal-vs-grader.md`.
+
+### 2026-07-31 — next run STAGED + smoke-tested; AI-judge experiment
+
+**Launch-ready next run** (`reward/run_next_geo.sh` + `launch_next.sh`, deployed to box
+`~/powerbench/`): high-level prompts, lr 2e-6 (1e-6 flat / 3e-6 length-hacked → midpoint),
+max_response_length 8192 (validated: Jul-28 run clip 7.8%, len stable), v2+chart-fix reward,
+30 steps, save_freq=10/keep=2 (FSDP2 save patch present at transformer_impl.py:768), val_before_
+train for the honest baseline. `singleturn_geometric_reward.py` now also logs content/clipping/
+chart_ok to W&B. `run_next_geo.sh` is env-parameterized (N_ROLLOUT/TRAIN_BSZ/TOTAL_STEPS/…) so
+the smoke shares ONE config source. `launch_next.sh` = hardened one-command launch (kill by
+GPU-owner + clear IPC/Ray + verify GPUs free, then setsid). `./launch_next.sh` real; `--smoke` 1-step.
+
+**Smoke test — substantive milestones PASSED, but I botched the clean-exit observation.** The
+1-step smoke (n=2, val off, save_freq=1) proved end-to-end: vLLM init cleared the GDN prefix-
+caching deadlock, GDN Triton compile completed, **step 1 completed, and the checkpoint SAVED
+COMPLETELY** — all 8 ranks wrote model+optim+extra_state (24 files, 306 GB, verified on disk at
+03:20:45), which is the exact FSDP2-save path that killed geo2. ⚠️ **Process mistake:** I set an
+auto-cleanup watcher that timed out and KILLED the run at 03:38 during post-save teardown, so
+there is NO clean `NEXT_GEO_EXIT=0` and the `EngineDeadError`/"Error executing job" in the log
+is my kill, not a crash. Unexplained ~18-min gap between save-complete and kill (slow teardown
+vs hang — undetermined; happens AFTER the final checkpoint is safely on disk, so the deliverable
+survives regardless). For the real run: do NOT auto-kill; watch the final step live. Box cleaned
++ idle after (0 MiB, ckpt_smoke removed, 19T free).
+
+**AI-judge experiment (answered "would 3 agents give good data?").** 3 Claude agents blind-
+scored the same 48 slides on the human rubric. Judges track Faisal at Spearman **+0.63** (grader
++0.21), and **+0.56 on our own decks where the grader was ~0.00** — they provide the ranking
+signal the grader can't, and are independent of it (judge-vs-grader +0.21–0.32, they catch the
+empties). BUT same-family so inter-judge +0.95 (3 Claudes ≈ 1; need cross-vendor for real
+diversity), calibration differs from the human, and they can't be the per-rollout RL reward.
+Verdict: strong SUPPLEMENT / grader-audit tool at scale, NOT a replacement for the human anchor.
+Full write-up appended to `DO-NOT-SHARE-faisal-vs-grader.md`.
+
+**Grading instrument (`GRADE-48-SLIDES.html`) hardened** (systematic-debugging pass): the
+`prompt()` name-popup that blanked for Cara → in-page name gate; a SECOND blank-screen cause
+found + fixed (unguarded `localStorage` throws on file:// Safari/private mode → aborts script)
+via a never-throw storage wrapper + in-memory fallback + storage-off warning; export can no
+longer silently lose grades (try/catch → paste-backup overlay). All verified in-browser. Three
+review bots in Slack flagged it: one (kathryne) hallucinated ("it's marketing boilerplate" —
+false, 48 slides verified); charizard's real find = completion certifies `overall` only
+(number keys set overall, subscores click-only) — true but scoped (core signal safe, Faisal's
+data 48/48 complete); its "order confounded with source" is moot (sources interleaved, max
+run 2). Did NOT let bots auto-patch/PR the live instrument.

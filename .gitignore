@@ -6,7 +6,7 @@ AutoPresent/
 # The answer key maps item_NN -> source model + grader score. Publishing it unblinds the
 # 48-slide human grading study before the raters have finished, which destroys the only
 # human-anchored calibration evidence we have.
-DO-NOT-SHARE-answerkey.json
+DO-NOT-SHARE*
 *answerkey*.json
 slide-grades-*.json
 
@@ -19,3 +19,6 @@ GRADE-48-SLIDES.html
 __pycache__/
 *.pyc
 .DS_Store
+
+# redundant 9.4 MB archive of eval/ PNGs -- the rendered decks are already in eval/{baseline,step10,step20,step30}/
+eval/evalpngs.tar

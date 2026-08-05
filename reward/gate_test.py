@@ -80,7 +80,7 @@ def main():
           % len(required))
 
     rows = []
-    for name in ("good", "padded", "empty"):
+    for name in ("good", "padded", "empty", "empty_chart", "sparse"):
         if name not in fx:
             print("MISSING FIXTURE: %s" % name)
             return 1
@@ -128,6 +128,46 @@ def main():
         ok = False
         print("FAIL  empty (%.4f) >= good (%.4f)  -- degenerate blank deck scores well"
               % (scores["empty"], scores["good"]))
+
+    # 2a. Empty-chart must not look good (the detail_cov trap from item_30).
+    # A chart's axes/gridlines/legend are structured ink; if the content term can be
+    # farmed by chart chrome with no data, this passes the gate but fails a viewer.
+    if scores["empty_chart"] < scores["good"]:
+        print("PASS  empty_chart (%.4f) < good (%.4f)  -- chart chrome is not free content"
+              % (scores["empty_chart"], scores["good"]))
+    else:
+        ok = False
+        print("FAIL  empty_chart (%.4f) >= good (%.4f)  -- detail_cov fooled by empty-chart "
+              "chrome; content term needs a real data/fill signal"
+              % (scores["empty_chart"], scores["good"]))
+
+    # 2b. Sparse monochrome slide must land below good (item_25/35 blind spot).
+    if scores["sparse"] < scores["good"]:
+        print("PASS  sparse (%.4f) < good (%.4f)  -- a near-empty slide is not a free win"
+              % (scores["sparse"], scores["good"]))
+    else:
+        ok = False
+        print("FAIL  sparse (%.4f) >= good (%.4f)  -- near-empty monochrome slide scores well"
+              % (scores["sparse"], scores["good"]))
+
+    # 2c. Instruction-adherence: an on-topic deck must beat an off-topic one of IDENTICAL form.
+    # This is the hole a form-only reward cannot see -- both decks are well-composed; they
+    # differ only in whether the title carries the task's required text.
+    REQ = ["Quarterly Platform Review"]
+    on_res = score_deck(fx["ontopic"].get("pptx"), fx["ontopic"].get("pngs") or [], required_texts=REQ)
+    off_res = score_deck(fx["offtopic"].get("pptx"), fx["offtopic"].get("pngs") or [], required_texts=REQ)
+    on_s, off_s = on_res["score"], off_res["score"]
+    off_adh = off_res["metrics"].get("adherence")
+    print("\nAdherence check (required_texts=%s):" % REQ)
+    print("  on-topic  score %.4f  adherence %.2f" % (on_s, on_res["metrics"].get("adherence", -1)))
+    print("  off-topic score %.4f  adherence %.2f" % (off_s, off_adh if off_adh is not None else -1))
+    if on_s > off_s and off_adh == 0.0:
+        print("PASS  on-topic (%.4f) > off-topic (%.4f), off-topic adherence 0.0  -- the reward "
+              "now sees instruction-adherence, margin %.4f" % (on_s, off_s, on_s - off_s))
+    else:
+        ok = False
+        print("FAIL  on-topic (%.4f) vs off-topic (%.4f), off adherence %s  -- adherence signal "
+              "not working" % (on_s, off_s, off_adh))
 
     # 3. No negative rewards anywhere (the collapse cause).
     if all(s >= 0.0 for s in scores.values()):

@@ -22,7 +22,7 @@ def render_deck(pptx, workdir, target_w=1280):
         for _attempt in range(2):
             subprocess.run(["soffice", "-env:UserInstallation=file://" + prof,
                             "--headless", "--convert-to", "pdf",
-                            "--outdir", workdir, pptx], capture_output=True, timeout=600)
+                            "--outdir", workdir, pptx], capture_output=True, timeout=120)
             if os.path.isfile(pdf):
                 break
     if not os.path.isfile(pdf):
@@ -31,7 +31,7 @@ def render_deck(pptx, workdir, target_w=1280):
     got = sorted(glob.glob(pref + "-*.png"))
     if not got:
         subprocess.run(["pdftoppm", "-png", "-scale-to-x", str(target_w),
-                        "-scale-to-y", "-1", pdf, pref], capture_output=True, timeout=600)
+                        "-scale-to-y", "-1", pdf, pref], capture_output=True, timeout=120)
         got = sorted(glob.glob(pref + "-*.png"))
     return got
 
@@ -250,14 +250,50 @@ def text_contrast(rgb, m):
     return float((vals * wts).sum() / wts.sum())
 
 
-def slide_measures(png):
+def slide_content_mask(slide, slide_w, slide_h, H, W):
+    """Pixel mask of AUTHORED content regions on one slide: text-bearing shapes, pictures,
+    charts, tables. Excludes connectors / lines / empty auto-shapes -- i.e. DECORATION.
+
+    WHY: `content` = detail_cov = edge-pixels ANYWHERE. A grid of decorative (zero-area)
+    connector lines farmed it to ~1.0 for a meaningless slide at zero geometry cost (red-team
+    2026-07-31, measured score 0.83). Restricting detail_cov to authored-content boxes drops
+    the decoration outside them. Validated on the 45 blind designer decks: content_score rho
+    vs designer grades IMPROVED +0.588 -> +0.626 (out-of-box edges were noise)."""
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+    mask = np.zeros((H, W), dtype=bool)
+    for shp in slide.shapes:
+        content = ((getattr(shp, "has_text_frame", False) and (shp.text_frame.text or "").strip())
+                   or shp.shape_type == MSO_SHAPE_TYPE.PICTURE
+                   or getattr(shp, "has_chart", False)
+                   or getattr(shp, "has_table", False))
+        if not content:
+            continue
+        try:
+            L = int(shp.left / slide_w * W); T = int(shp.top / slide_h * H)
+            R = int((shp.left + shp.width) / slide_w * W); B = int((shp.top + shp.height) / slide_h * H)
+        except Exception:
+            continue
+        L = max(0, L); T = max(0, T); R = min(W, R); B = min(H, B)
+        if R > L and B > T:
+            mask[T:B, L:R] = True
+    return mask
+
+
+def slide_measures(png, content_mask=None):
     rgb = load_rgb(png)
     h, w = rgb.shape[:2]
     m = masks(rgb)
     fg = fg_mask(m, rgb)
     out = {}
     out["ink_cov"] = float(m["INK"].mean())
-    out["detail_cov"] = float(m["D"].mean())
+    # detail_cov feeds `content`. Restrict to authored-content boxes when a mask is supplied,
+    # so decoration outside them (the connector-grid farm) cannot inflate it. Fraction is over
+    # the WHOLE image (not box area), so a real deck whose detail lives in its content boxes is
+    # ~unchanged while a decoration farm collapses.
+    if content_mask is not None:
+        out["detail_cov"] = float((m["D"] & content_mask).sum() / (h * w))
+    else:
+        out["detail_cov"] = float(m["D"].mean())
     out["fg_cov"] = float(fg.mean())
     out["glyph_cov"] = float((m["V"] & fg).mean())
     # bbox / margins on foreground ink
@@ -296,7 +332,23 @@ def deck_measures(pptx, workdir):
     pngs = render_deck(pptx, workdir)
     if not pngs:
         return None
-    per = [slide_measures(p) for p in pngs]
+    # Build a per-slide authored-content mask so detail_cov (content) ignores decoration.
+    # Falls back to no mask (whole-image detail_cov) if the pptx can't be opened for geometry.
+    content_masks = [None] * len(pngs)
+    try:
+        from pptx import Presentation
+        prs = Presentation(pptx)
+        slides = list(prs.slides)
+        sw, sh = prs.slide_width, prs.slide_height
+        for i, p in enumerate(pngs):
+            sl = slides[i] if i < len(slides) else (slides[-1] if slides else None)
+            if sl is None:
+                continue
+            _rgb = load_rgb(p); H, W = _rgb.shape[:2]
+            content_masks[i] = slide_content_mask(sl, sw, sh, H, W)
+    except Exception:
+        content_masks = [None] * len(pngs)
+    per = [slide_measures(p, content_masks[i]) for i, p in enumerate(pngs)]
     agg = {}
     keys = [k for k in per[0] if not k.startswith("_")]
     for k in keys:

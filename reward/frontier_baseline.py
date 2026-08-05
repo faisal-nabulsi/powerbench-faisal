@@ -68,10 +68,25 @@ def call_openai(model, system, user, max_tokens, temperature=0.0, thinking_budge
     return r.choices[0].message.content or ""
 
 
+def call_local(model, system, user, max_tokens, temperature=0.0, thinking_budget=0):
+    """Our OWN 27B, served by vLLM (OpenAI-compatible). This is how we generate the held-out
+    decks for the INDEPENDENT judge eval: same prompts, same extraction/sandbox as training,
+    but the decks are scored by the VLM-judge panel (independent of the geometric reward) so a
+    before/after gain means real improvement, not reward-hacking. temperature=0 = greedy parity
+    with verl val_kwargs. The 27B is thinking-on; extract_code parses past </think>."""
+    from openai import OpenAI
+    c = OpenAI(base_url=os.environ.get("LOCAL_BASE_URL", "http://localhost:8000/v1"),
+               api_key="local")
+    r = c.chat.completions.create(model=model, max_tokens=max_tokens, temperature=temperature,
+                                  messages=[{"role": "system", "content": system},
+                                            {"role": "user", "content": user}])
+    return r.choices[0].message.content or ""
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
-    ap.add_argument("--provider", default="anthropic", choices=["anthropic", "openai"])
+    ap.add_argument("--provider", default="anthropic", choices=["anthropic", "openai", "local"])
     ap.add_argument("--n", type=int, default=45)
     ap.add_argument("--max-tokens", type=int, default=8192)
     ap.add_argument("--concurrency", type=int, default=6)
@@ -96,7 +111,7 @@ def main():
         usermsg = pr[1]["content"]
         tasks.append((dict(row["extra_info"]).get("task", "?"), sysmsg, usermsg))
 
-    call = call_anthropic if a.provider == "anthropic" else call_openai
+    call = {"anthropic": call_anthropic, "openai": call_openai, "local": call_local}[a.provider]
     mode = ("thinking budget=%d, temperature=1 (API-forced)" % a.thinking) if a.thinking \
            else ("no thinking, temperature=%.2f" % a.temperature)
     print("model=%s  provider=%s  tasks=%d" % (a.model, a.provider, len(tasks)))

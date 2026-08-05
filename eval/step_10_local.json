@@ -1,0 +1,846 @@
+{
+ "summary": {
+  "model": "qwen",
+  "n": 45,
+  "mean_score": 0.5664,
+  "median": 0.615,
+  "sd": 0.3507,
+  "valid_rate": 0.8,
+  "mean_chars": 3463,
+  "temperature": 0.0,
+  "thinking_budget": 0,
+  "api_errors": 0,
+  "per_metric": {
+   "collision": 0.935,
+   "overflow": 0.931,
+   "textfit": 0.951,
+   "density": 0.884,
+   "contrast": 0.998,
+   "imbalance": 0.624,
+   "picfit": 0.816,
+   "alignment": 0.98,
+   "aspect": 1.0
+  }
+ },
+ "results": [
+  {
+   "task": "career/slide_9",
+   "score": 0.9706,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.7159,
+    "textfit": 1.0,
+    "contrast": 0.9245,
+    "picfit": 0.9922,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 4358
+  },
+  {
+   "task": "food/slide_22",
+   "score": 0.8471,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.5162,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.8107,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2860
+  },
+  {
+   "task": "food/slide_10",
+   "score": 0.8952,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.5852,
+    "textfit": 0.849,
+    "contrast": 1.0,
+    "picfit": 0.2946,
+    "alignment": 0.9556,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.999,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3970
+  },
+  {
+   "task": "food/slide_29",
+   "score": 0.615,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.6603,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.371,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2074
+  },
+  {
+   "task": "food/slide_27",
+   "score": 0.9049,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.6155,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.8955,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3712
+  },
+  {
+   "task": "career/slide_12",
+   "score": 0.931,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.6709,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 0.9869,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.9333,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 4539
+  },
+  {
+   "task": "environment/slide_3",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 2970
+  },
+  {
+   "task": "social_media/slide_7",
+   "score": 0.8025,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.3569,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.5185,
+    "alignment": 0.9778,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.8179,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3026
+  },
+  {
+   "task": "technology/slide_12",
+   "score": 0.1957,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.6,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 0.0741,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 1072
+  },
+  {
+   "task": "design/slide_2",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 6904
+  },
+  {
+   "task": "marketing/slide_33",
+   "score": 0.5794,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.2157,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.7879,
+    "alignment": 0.9,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.3821,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2592
+  },
+  {
+   "task": "social_media/slide_10",
+   "score": 0.9029,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.7102,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.8799,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2930
+  },
+  {
+   "task": "career/slide_2",
+   "score": 0.9801,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.757,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2652
+  },
+  {
+   "task": "social_media/slide_3",
+   "score": 0.9015,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 0.9948,
+    "imbalance": 0.42,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.4722,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.9874,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3351
+  },
+  {
+   "task": "marketing/slide_27",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 2413
+  },
+  {
+   "task": "marketing/slide_35",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 3796
+  },
+  {
+   "task": "marketing/slide_43",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 3124
+  },
+  {
+   "task": "food/slide_16",
+   "score": 0.5671,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.6054,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.3333,
+    "alignment": 0.8002,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.3702,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2467
+  },
+  {
+   "task": "design/slide_5",
+   "score": 0.3887,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 0.0,
+    "imbalance": 0.3079,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.5486,
+    "clipping": 0.0,
+    "chart_ok": 1.0
+   },
+   "chars": 4471
+  },
+  {
+   "task": "social_media/slide_17",
+   "score": 0.9662,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.6493,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 0.9441,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 5275
+  },
+  {
+   "task": "environment/slide_7",
+   "score": 0.9335,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.4825,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.71,
+    "alignment": 0.9876,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2601
+  },
+  {
+   "task": "marketing/slide_29",
+   "score": 0.845,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 1.0,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.6667,
+    "alignment": 1.0,
+    "density": 0.9967,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.7884,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 1570
+  },
+  {
+   "task": "marketing/slide_41",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 3946
+  },
+  {
+   "task": "business/slide_4",
+   "score": 0.1402,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 0.8878,
+    "imbalance": 0.8384,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.6667,
+    "alignment": 0.85,
+    "density": 0.028,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 1777
+  },
+  {
+   "task": "social_media/slide_16",
+   "score": 0.7795,
+   "valid": true,
+   "metrics": {
+    "collision": 0.7012,
+    "overflow": 0.8712,
+    "imbalance": 0.6761,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.65,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3736
+  },
+  {
+   "task": "career/slide_19",
+   "score": 0.9547,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.78,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.6667,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3562
+  },
+  {
+   "task": "marketing/slide_13",
+   "score": 0.4224,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.9634,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.6667,
+    "alignment": 1.0,
+    "density": 0.7183,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.007,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2049
+  },
+  {
+   "task": "food/slide_14",
+   "score": 0.7734,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.3676,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.8267,
+    "alignment": 0.9843,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.7236,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3776
+  },
+  {
+   "task": "business/slide_13",
+   "score": 0.5571,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.874,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.9167,
+    "alignment": 1.0,
+    "density": 0.7627,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.2715,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2115
+  },
+  {
+   "task": "career/slide_17",
+   "score": 0.4088,
+   "valid": true,
+   "metrics": {
+    "collision": 0.4982,
+    "overflow": 0.0,
+    "imbalance": 0.5856,
+    "textfit": 0.2053,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 0.7877,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 6258
+  },
+  {
+   "task": "technology/slide_1",
+   "score": 0.627,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.8888,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.8364,
+    "alignment": 1.0,
+    "density": 0.2817,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.4813,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2014
+  },
+  {
+   "task": "environment/slide_4",
+   "score": 0.8614,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.3242,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.0702,
+    "alignment": 0.8222,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.9987,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2115
+  },
+  {
+   "task": "career/slide_4",
+   "score": 0.9597,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.938,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.9436,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 5174
+  },
+  {
+   "task": "marketing/slide_24",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 2639
+  },
+  {
+   "task": "marketing/slide_21",
+   "score": 0.5619,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.7672,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.2548,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3041
+  },
+  {
+   "task": "marketing/slide_22",
+   "score": 0.6032,
+   "valid": true,
+   "metrics": {
+    "collision": 0.3794,
+    "overflow": 1.0,
+    "imbalance": 0.9513,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.8571,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.5615,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3985
+  },
+  {
+   "task": "technology/slide_11",
+   "score": 0.8295,
+   "valid": true,
+   "metrics": {
+    "collision": 0.7801,
+    "overflow": 1.0,
+    "imbalance": 0.3442,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 0.9987,
+    "density": 0.9808,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 6549
+  },
+  {
+   "task": "social_media/slide_5",
+   "score": 0.7953,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.2518,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 0.4593,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.8259,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 2707
+  },
+  {
+   "task": "marketing/slide_3",
+   "score": 0.4105,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 0.7955,
+    "imbalance": 0.2495,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 0.648,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.0524,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 1242
+  },
+  {
+   "task": "food/slide_31",
+   "score": 0.6672,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.7583,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.4591,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3326
+  },
+  {
+   "task": "marketing/slide_11",
+   "score": 0.49,
+   "valid": true,
+   "metrics": {
+    "collision": 0.2832,
+    "overflow": 1.0,
+    "imbalance": 0.6992,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 1.0,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 0.2195,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 3387
+  },
+  {
+   "task": "career/slide_15",
+   "score": 0.4464,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 0.966,
+    "imbalance": 0.6467,
+    "textfit": 0.18,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 0.9896,
+    "density": 0.6395,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 0.0,
+    "chart_ok": 1.0
+   },
+   "chars": 5556
+  },
+  {
+   "task": "marketing/slide_42",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 4159
+  },
+  {
+   "task": "social_media/slide_18",
+   "score": 0.9726,
+   "valid": true,
+   "metrics": {
+    "collision": 1.0,
+    "overflow": 1.0,
+    "imbalance": 0.6962,
+    "textfit": 1.0,
+    "contrast": 1.0,
+    "picfit": 1.0,
+    "alignment": 1.0,
+    "density": 0.972,
+    "aspect": 1.0,
+    "adherence": 1.0,
+    "content": 1.0,
+    "clipping": 1.0,
+    "chart_ok": 1.0
+   },
+   "chars": 7499
+  },
+  {
+   "task": "marketing/slide_8",
+   "score": 0.0,
+   "valid": false,
+   "metrics": {},
+   "chars": 2503
+  }
+ ]
+}

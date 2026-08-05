@@ -27,7 +27,7 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from geometric_reward import score_deck  # noqa: E402
+from geometric_reward import score_deck, _parse_required  # noqa: E402
 
 # Persist a sample of real rollout decks + renders + scores so we can SHOW what the model
 # actually produced (the rollout tmpdir is otherwise deleted after scoring).
@@ -147,7 +147,7 @@ def run_code_to_deck(code, workdir):
     return None
 
 
-def score_solution(solution_str, extra_info=None, keep_dir=None, keep_name=None):
+def score_solution(solution_str, extra_info=None, keep_dir=None, keep_name=None, required_texts=None):
     """Full pipeline: code -> deck -> geometric score. Returns the score dict.
 
     keep_dir: if set, EVERY deck is copied there (not the ~1-in-6 gallery sample) and the
@@ -165,7 +165,7 @@ def score_solution(solution_str, extra_info=None, keep_dir=None, keep_name=None)
             return {"score": 0.0, "metrics": {}, "valid": False,
                     "reason": "code failed to produce a deck"}
 
-        res = score_deck(deck)  # render-free; density comes from the deck's text volume
+        res = score_deck(deck, required_texts=required_texts)  # + instruction-adherence
         if keep_dir:
             import re as _re
             os.makedirs(keep_dir, exist_ok=True)
@@ -190,12 +190,19 @@ def score_solution(solution_str, extra_info=None, keep_dir=None, keep_name=None)
 # That requires EVERY sample to return EXACTLY the same set of keys. If an invalid deck
 # returns fewer keys than a valid one, verl KeyErrors. So we always return this fixed
 # schema, filling missing metrics with 0.0.
-_METRIC_KEYS = ("collision", "overflow", "imbalance", "density", "aspect", "textfit", "contrast", "picfit", "alignment")
+# v2 additions (content, clipping, chart_ok) are logged so W&B shows them per step: content
+# and chart_ok are the two metrics that close the empty-deck / empty-chart holes, so a run
+# that starts farming either will show it here BEFORE the held-out score reacts. chart_ok
+# defaults to 1.0 (no chart present) when a deck has no metrics; the others default 0.0.
+_METRIC_KEYS = ("collision", "overflow", "imbalance", "density", "aspect", "textfit",
+                "contrast", "picfit", "alignment", "content", "clipping", "chart_ok",
+                "adherence")
+_METRIC_DEFAULT = {"chart_ok": 1.0, "adherence": 1.0}
 
 
 def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kwargs):
     try:
-        res = score_solution(solution_str, extra_info)
+        res = score_solution(solution_str, extra_info, required_texts=_parse_required(ground_truth))
         score = float(res.get("score", 0.0))
         valid = 1.0 if res.get("valid") else 0.0
         metrics = res.get("metrics", {}) or {}
@@ -204,7 +211,7 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kw
 
     out = {"score": score, "valid": valid}
     for k in _METRIC_KEYS:  # always present, consistent schema across the batch
-        out["m_" + k] = float(metrics.get(k, 0.0))
+        out["m_" + k] = float(metrics.get(k, _METRIC_DEFAULT.get(k, 0.0)))
     return out
 
 

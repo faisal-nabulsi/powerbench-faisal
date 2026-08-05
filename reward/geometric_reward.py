@@ -57,6 +57,11 @@ WEIGHTS = {
     #
     # collision (rho -0.534) and textfit (rho -0.431) are the two most ANTI-correlated
     # metrics with designer judgement, so both are demoted.
+    "adherence": 0.10,   # NEW (2026-07-31): does the slide say what the instruction asked?
+                         # The only content-CORRECTNESS signal; every other metric is form.
+                         # Title-level anchor on high-level prompts; a guard against the
+                         # generic-template attack a form-only reward cannot see. Weights now
+                         # sum to 1.10 and are renormalized by wsum below (auto).
     "content":   0.20,   # NEW, render-based: real ink coverage, band-limited both sides
     "collision": 0.12,   # was 0.19 -- anti-correlated, demoted
     "overflow":  0.10,   # was 0.15
@@ -138,6 +143,173 @@ def score_density(pptx_path):
     return sum(per) / len(per)
 
 
+def score_chart_content(pptx_path):
+    """Render-free: does each chart carry real data, or is it empty chrome?
+
+    WHY THIS EXISTS. The render-based `content` metric is `detail_cov` -- the fraction of
+    pixels with local structure (edges/strokes). A chart renders a plot area, both axes,
+    gridlines, tick labels and a legend: a dense mesh of thin lines that scores high
+    `detail_cov` even when the chart has NO data. The blind study confirmed the hole:
+    item_30 ("the chart is empty") scored grader 0.97 / content 0.98 while a human gave it
+    6/10. Geometry cannot see this (the chart shape is a single well-placed box) and pixels
+    cannot see it (chrome and bars are both edges). Only the DATA can, and python-pptx
+    exposes it directly.
+
+    A chart is "empty" if no series holds a value that is not None and not 0. Returns
+    {n_charts, n_empty_charts, chart_ok} where chart_ok in [0,1] is the fraction of charts
+    carrying real data (1.0 when there are no charts -- text slides are untouched).
+    """
+    from pptx import Presentation
+    prs = Presentation(pptx_path)
+    n_charts = n_empty = 0
+    for slide in prs.slides:
+        for sh in slide.shapes:
+            if not getattr(sh, "has_chart", False):
+                continue
+            n_charts += 1
+            has_data = False
+            try:
+                for plot in sh.chart.plots:
+                    for ser in plot.series:
+                        if any(v not in (None, 0) for v in ser.values):
+                            has_data = True
+                            break
+                    if has_data:
+                        break
+            except Exception:
+                has_data = True  # unreadable chart: don't punish, we can't prove it empty
+            if not has_data:
+                n_empty += 1
+    chart_ok = 1.0 if n_charts == 0 else 1.0 - (n_empty / float(n_charts))
+    return {"n_charts": n_charts, "n_empty_charts": n_empty, "chart_ok": chart_ok}
+
+
+# An empty chart's chrome inflates render `content` (detail_cov) to ~0.98. Cap content to
+# this floor when ALL of a slide's charts are empty, so chrome-without-data cannot farm the
+# one metric that is supposed to certify real content. Small non-zero floor because a title
+# / caption may still be present -- we punish the empty chart, not the whole slide to zero.
+EMPTY_CHART_CONTENT_FLOOR = 0.15
+
+
+import re as _re_adh
+
+
+def _norm_text(s):
+    return " ".join(_re_adh.sub(r"[^a-z0-9 ]+", " ", (s or "").lower()).split())
+
+
+# Minimum on-canvas area (fraction of the slide) and font size for text to count toward
+# adherence. Without these, the required strings could be stashed in a 1pt / white / off-canvas
+# "ghost" textbox the collector would read but a VIEWER never sees -- reinstating the exact
+# generic-template attack adherence exists to block (red-team, 2026-07-31). We can only credit
+# text a viewer would actually read.
+ADH_MIN_AREA_FRAC = 0.0004   # shape's on-canvas area below this = invisible speck
+ADH_MIN_FONT_EMU = 76200     # 6pt in EMU (Pt(6)=76200); runs smaller than this don't count
+
+
+def _shape_on_canvas_area_ok(sh, slide_w, slide_h):
+    """Does the shape occupy a non-trivial area INSIDE the canvas? Rejects off-canvas and
+    zero/near-zero-size shapes. Unknown geometry -> True (never punish on missing data)."""
+    try:
+        L, T, W, H = int(sh.left), int(sh.top), int(sh.width), int(sh.height)
+    except Exception:
+        return True
+    if W <= 0 or H <= 0:
+        return False
+    ox = max(0, min(L + W, slide_w) - max(L, 0))
+    oy = max(0, min(T + H, slide_h) - max(T, 0))
+    if ox <= 0 or oy <= 0:
+        return False   # bbox does not intersect the canvas at all
+    return (ox * oy) >= ADH_MIN_AREA_FRAC * slide_w * slide_h
+
+
+def _visible_shape_text(sh):
+    """Text from a shape's runs, dropping runs whose font is explicitly tiny (<6pt). A run
+    with size None inherits a normal size -> counted."""
+    out = []
+    for para in sh.text_frame.paragraphs:
+        psz = para.font.size
+        runs = list(para.runs)
+        if runs:
+            for run in runs:
+                sz = run.font.size if run.font.size is not None else psz
+                if sz is not None and int(sz) < ADH_MIN_FONT_EMU:
+                    continue
+                out.append(run.text or "")
+        elif para.text:  # text set without explicit runs
+            if psz is None or int(psz) >= ADH_MIN_FONT_EMU:
+                out.append(para.text)
+    return " ".join(out)
+
+
+def _deck_text_norm(pptx_path):
+    """Normalized text a VIEWER would see: only shapes on-canvas at non-trivial size, and only
+    runs whose font is not explicitly tiny. This is the adherence haystack -- hidden text must
+    not earn adherence credit. (White-on-white is a residual a render-free check can't see; it
+    is a narrower, harder-to-discover exploit and would also tank the `contrast` metric.)"""
+    from pptx import Presentation
+    prs = Presentation(pptx_path)
+    parts = []
+    for slide in prs.slides:
+        sw, sh_h = prs.slide_width, prs.slide_height
+        for sh in slide.shapes:
+            if not getattr(sh, "has_text_frame", False):
+                continue
+            if not _shape_on_canvas_area_ok(sh, sw, sh_h):
+                continue
+            parts.append(_visible_shape_text(sh))
+    return _norm_text(" ".join(parts))
+
+
+# A required phrase counts as present if it appears verbatim OR >= this fraction of its
+# significant (>=3-char) tokens appear -- robust to punctuation/wording drift.
+ADHERENCE_TOKEN_FRAC = 0.8
+
+
+def score_adherence(pptx_path, required_texts):
+    """Fraction of the instruction's required strings present on the slide.
+
+    WHY THIS EXISTS. Every other metric scores the FORM of the slide (geometry, ink, text
+    volume) and none scores whether it says WHAT IT WAS ASKED TO SAY. That gap is the biggest
+    reward-hack surface: a generic, well-formatted, instruction-ignoring template maxes every
+    form metric. This ties the slide to the task's own required content -- the dataset already
+    carries it in ground_truth as `required_texts`, the reward just never used it.
+
+    PADDING-PROOF (unlike the old text-coverage reward it revives): it rewards presence of the
+    SPECIFIC required strings, which generic filler does not contain, and the existing density
+    band + emptiness gate already punish the padding that broke text-coverage. No required_texts
+    -> 1.0 (nothing to check; never punish for missing ground truth)."""
+    if not required_texts:
+        return 1.0
+    hay = _deck_text_norm(pptx_path)
+    hay_words = set(hay.split())   # word-boundary set: 'cost' must not match 'forecast'
+    hits = 0
+    for t in required_texts:
+        nt = _norm_text(t)
+        if not nt:
+            hits += 1
+            continue
+        # keep >=3-char tokens AND any token containing a digit (numbers/units are the
+        # quantitative specifics an off-instruction deck would drop -- don't let it).
+        toks = [w for w in nt.split() if len(w) >= 3 or any(c.isdigit() for c in w)]
+        if nt in hay:                          # exact normalized phrase present verbatim
+            hits += 1
+        elif toks and sum(1 for w in toks if w in hay_words) / len(toks) >= ADHERENCE_TOKEN_FRAC:
+            hits += 1
+    return hits / len(required_texts)
+
+
+def _parse_required(ground_truth):
+    """Pull required_texts out of the verl ground_truth (JSON str or dict). None if absent."""
+    import json
+    try:
+        gt = json.loads(ground_truth) if isinstance(ground_truth, str) else (ground_truth or {})
+        req = gt.get("required_texts")
+        return req or None
+    except Exception:
+        return None
+
+
 def score_aspect(pptx_path):
     """Render-free 16:9 compliance from the deck's slide dimensions. [0,1], 1.0 = 16:9."""
     import math
@@ -151,8 +323,10 @@ def score_aspect(pptx_path):
     return max(0.0, min(1.0, math.exp(-ASPECT_K * d * d)))
 
 
-def score_deck(pptx_path, png_paths=None):
-    """Score a single deck geometrically. png_paths is accepted but ignored (render-free).
+def score_deck(pptx_path, png_paths=None, required_texts=None):
+    """Score a single deck. png_paths is accepted but ignored (render-free geometry; the
+    render for content/clipping happens internally). required_texts is the task's ground-truth
+    content the slide should contain (None/[] -> adherence not checked).
 
     Returns {'score', 'metrics', 'valid', 'reason'}. An unopenable deck scores 0.0.
     """
@@ -178,6 +352,10 @@ def score_deck(pptx_path, png_paths=None):
         metrics["aspect"] = float(score_aspect(pptx_path))
     except Exception:
         metrics["aspect"] = 0.0
+    try:
+        metrics["adherence"] = float(score_adherence(pptx_path, required_texts))
+    except Exception:
+        metrics["adherence"] = 1.0   # never punish the slide for a scorer error
 
     # ---- render-based metrics (v2) --------------------------------------------
     # Geometry reads the shape BOX; a viewer sees the rendered INK. That gap is not a
@@ -191,6 +369,8 @@ def score_deck(pptx_path, png_paths=None):
     try:
         import render_metrics as _rm
         _r = _rm.score_render(pptx_path)
+        if _r is None:
+            _r = _rm.score_render(pptx_path, use_cache=False)  # retry once: transient soffice flake
     except Exception:
         _r = None
     if _r:
@@ -198,13 +378,32 @@ def score_deck(pptx_path, png_paths=None):
         metrics["clipping"] = float(_r["clipping"])
         render_ok = True
     else:
-        # A render failure must NEVER be rewarded. Returning 1.0 here made a failed render
-        # score BETTER than a successful one, which is both a hack surface and the reason
-        # a concurrency race showed up as reward drift. 0.5 is deliberately neutral-poor:
-        # we could not assess the pixels, so we neither credit nor fully condemn the deck.
-        metrics["content"] = 0.5
-        metrics["clipping"] = 0.5
+        # A non-rendering deck shows the VIEWER nothing, so it must be CONDEMNED, not given a
+        # neutral score. The old 0.5 fallback was a reward-hack surface (red-team 2026-07-31):
+        # forcing a render failure (soffice timeout / malformed-but-openable OOXML) banked
+        # content=clipping=0.5 -- BETTER than an honestly-blank rendered slide (content~0) --
+        # and lifted the soft-min floor from 0.55 to 0.775, and dodged the emptiness gate too.
+        # content=0.0 is a critical-gate member, so a failed render now floors the score (x0.55).
+        # With the per-render profile fix + one retry above, a persistent failure is almost
+        # always the deck's own fault, so scoring it 0 is correct, not unfair.
+        metrics["content"] = 0.0
+        metrics["clipping"] = 0.0
         render_ok = False
+
+    # ---- empty-chart correction (render-free) ---------------------------------
+    # detail_cov cannot tell a chart's data from its chrome. Read the series data and,
+    # when all of a slide's charts are empty, cap the render `content` metric so the
+    # chrome cannot certify content that is not there. `chart_ok` also enters the critical
+    # set below, so an empty chart trips the soft-min gate the way any catastrophe does.
+    try:
+        _ch = score_chart_content(pptx_path)
+    except Exception:
+        _ch = {"n_charts": 0, "n_empty_charts": 0, "chart_ok": 1.0}
+    metrics["chart_ok"] = float(_ch["chart_ok"])
+    if _ch["n_charts"] and _ch["chart_ok"] < 1.0:
+        # blend toward the empty-chart floor in proportion to how many charts are empty
+        cap = EMPTY_CHART_CONTENT_FLOOR + (1.0 - EMPTY_CHART_CONTENT_FLOOR) * _ch["chart_ok"]
+        metrics["content"] = min(metrics["content"], cap)
 
     total = wsum = 0.0
     for k, w in WEIGHTS.items():
@@ -231,7 +430,13 @@ def score_deck(pptx_path, png_paths=None):
     #                gating the GOOD slide (textfit 0.240 -> factor 0.658) while the gutted
     #                one sailed through at 1.000. A gate driven by the exploited metric
     #                rewards the exploit.
-    crit = [metrics.get(k, 1.0) for k in ("collision", "overflow", "clipping", "content")
+    #  + chart_ok -- an all-empty chart is a catastrophe the viewer sees as a blank plot;
+    #                render `content` alone was fooled by chrome (item_30: content 0.98).
+    #  + adherence -- a slide that ignores the instruction entirely is a catastrophe no form
+    #                 metric sees; it belongs in the soft-min gate so an off-instruction slide
+    #                 is multiplicatively penalized, not just docked its 0.10 additive weight.
+    crit = [metrics.get(k, 1.0) for k in
+            ("collision", "overflow", "clipping", "content", "chart_ok", "adherence")
             if k in metrics]
     if crit:
         score *= SOFT_FLOOR + (1.0 - SOFT_FLOOR) * min(crit)
@@ -258,7 +463,7 @@ def score_deck(pptx_path, png_paths=None):
 def compute_score(data_source, solution_str, ground_truth, extra_info=None, **kwargs):
     """Direct verl hook (unused by the single-turn path, which extracts+runs code first)."""
     extra_info = extra_info or {}
-    result = score_deck(extra_info.get("pptx_path"))
+    result = score_deck(extra_info.get("pptx_path"), required_texts=_parse_required(ground_truth))
     out = {"score": result["score"], "valid": 1.0 if result["valid"] else 0.0}
     for k in ("collision", "overflow", "imbalance", "density"):
         out["m_" + k] = float(result["metrics"].get(k, 0.0))

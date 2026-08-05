@@ -1,0 +1,146 @@
+{
+ "slide_001": {
+  "src": "baseline",
+  "task": "business_slide_4"
+ },
+ "slide_002": {
+  "src": "baseline",
+  "task": "career_slide_17"
+ },
+ "slide_003": {
+  "src": "baseline",
+  "task": "career_slide_4"
+ },
+ "slide_004": {
+  "src": "baseline",
+  "task": "design_slide_5"
+ },
+ "slide_005": {
+  "src": "baseline",
+  "task": "environment_slide_4"
+ },
+ "slide_006": {
+  "src": "baseline",
+  "task": "food_slide_10"
+ },
+ "slide_007": {
+  "src": "baseline",
+  "task": "food_slide_16"
+ },
+ "slide_008": {
+  "src": "baseline",
+  "task": "food_slide_27"
+ },
+ "slide_009": {
+  "src": "baseline",
+  "task": "food_slide_31"
+ },
+ "slide_010": {
+  "src": "baseline",
+  "task": "marketing_slide_13"
+ },
+ "slide_011": {
+  "src": "baseline",
+  "task": "marketing_slide_22"
+ },
+ "slide_012": {
+  "src": "baseline",
+  "task": "marketing_slide_27"
+ },
+ "slide_013": {
+  "src": "baseline",
+  "task": "marketing_slide_3"
+ },
+ "slide_014": {
+  "src": "baseline",
+  "task": "social_media_slide_10"
+ },
+ "slide_015": {
+  "src": "baseline",
+  "task": "social_media_slide_17"
+ },
+ "slide_016": {
+  "src": "baseline",
+  "task": "social_media_slide_3"
+ },
+ "slide_017": {
+  "src": "baseline",
+  "task": "social_media_slide_7"
+ },
+ "slide_018": {
+  "src": "baseline",
+  "task": "technology_slide_11"
+ },
+ "slide_019": {
+  "src": "baseline",
+  "task": "business_slide_13"
+ },
+ "slide_020": {
+  "src": "baseline",
+  "task": "career_slide_15"
+ },
+ "slide_021": {
+  "src": "baseline",
+  "task": "career_slide_2"
+ },
+ "slide_022": {
+  "src": "baseline",
+  "task": "career_slide_9"
+ },
+ "slide_023": {
+  "src": "baseline",
+  "task": "environment_slide_3"
+ },
+ "slide_024": {
+  "src": "baseline",
+  "task": "environment_slide_7"
+ },
+ "slide_025": {
+  "src": "baseline",
+  "task": "food_slide_14"
+ },
+ "slide_026": {
+  "src": "baseline",
+  "task": "food_slide_22"
+ },
+ "slide_027": {
+  "src": "baseline",
+  "task": "food_slide_29"
+ },
+ "slide_028": {
+  "src": "baseline",
+  "task": "marketing_slide_11"
+ },
+ "slide_029": {
+  "src": "baseline",
+  "task": "marketing_slide_21"
+ },
+ "slide_030": {
+  "src": "baseline",
+  "task": "marketing_slide_24"
+ },
+ "slide_031": {
+  "src": "baseline",
+  "task": "marketing_slide_29"
+ },
+ "slide_032": {
+  "src": "baseline",
+  "task": "marketing_slide_33"
+ },
+ "slide_033": {
+  "src": "baseline",
+  "task": "social_media_slide_16"
+ },
+ "slide_034": {
+  "src": "baseline",
+  "task": "social_media_slide_18"
+ },
+ "slide_035": {
+  "src": "baseline",
+  "task": "social_media_slide_5"
+ },
+ "slide_036": {
+  "src": "baseline",
+  "task": "technology_slide_1"
+ }
+}

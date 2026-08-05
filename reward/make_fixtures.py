@@ -231,6 +231,51 @@ def build_empty(path: str) -> str:
     return path
 
 
+def build_empty_chart(path: str) -> str:
+    """THE detail_cov trap: a title + a chart whose data is all zero.
+
+    Faithful to blind-study item_30 ("the chart is empty", grader 0.97 under v1). A
+    chart frame renders a plot area, both axes, gridlines, tick labels and a legend --
+    a dense mesh of thin lines that reads as high `detail_cov` (structured ink) even
+    though a human sees an empty chart with no bars. This is the sharpest test of whether
+    the v2 content term measures *real content* or merely *rendered edges*. It must score
+    strictly below good; if it does not, detail_cov is fooled by chart chrome and the
+    content term needs a real content-existence signal (data points / fill, not edges).
+    """
+    from pptx.chart.data import CategoryChartData
+    from pptx.enum.chart import XL_CHART_TYPE
+    prs = _new_deck()
+    s = _blank_slide(prs)
+    _textbox(s, Inches(0.9), Inches(0.55), Inches(11.5), Inches(1.0),
+             ["Quarterly Revenue"], size=36, bold=True, color=(0x11, 0x2B, 0x4A))
+    data = CategoryChartData()
+    data.categories = ["Q1", "Q2", "Q3", "Q4"]
+    data.add_series("Revenue", (0, 0, 0, 0))  # axes+gridlines+legend render; no visible bars
+    s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED,
+                       Inches(1.4), Inches(2.0), Inches(10.5), Inches(5.0), data)
+    prs.save(path)
+    return path
+
+
+def build_sparse(path: str) -> str:
+    """Near-empty monochrome slide: a title and one short line, acres of white space.
+
+    Faithful to blind-study item_25 / item_35 ("so much white space, no content at all";
+    "no info and boring, just black and white"), both scored 0.81-0.94 under v1. It is
+    structurally valid and technically carries text, so the emptiness gate (which keys on
+    text density) may not bite, but a viewer sees an empty slide. Tests the low end of the
+    content band: a slide this bare must land well below good.
+    """
+    prs = _new_deck()
+    s = _blank_slide(prs)
+    _textbox(s, Inches(0.9), Inches(0.5), Inches(11.5), Inches(1.0),
+             ["Overview"], size=32, bold=True, color=(0x00, 0x00, 0x00))
+    _textbox(s, Inches(0.9), Inches(1.7), Inches(7.0), Inches(0.5),
+             ["A brief summary of the topic."], size=16, color=(0x00, 0x00, 0x00))
+    prs.save(path)
+    return path
+
+
 # --------------------------------------------------------------- rendering --
 def _have_renderer() -> bool:
     return bool(shutil.which("soffice")) and bool(shutil.which("pdftoppm"))
@@ -277,7 +322,44 @@ def render_pptx(pptx_path: str, outdir: str) -> List[str]:
 
 
 # -------------------------------------------------------------- public API --
-BUILDERS = {"good": build_good, "padded": build_padded, "empty": build_empty}
+def _build_titled(path: str, title: str) -> str:
+    """A clean, well-formed single slide with a caller-chosen title + identical body. Used to
+    isolate the ADHERENCE signal: on-topic and off-topic decks differ ONLY in the title, so any
+    reward gap between them is due to instruction-adherence, not form."""
+    from pptx.enum.shapes import MSO_SHAPE
+    prs = _new_deck()
+    s = _blank_slide(prs)
+    _textbox(s, Inches(0.9), Inches(0.55), Inches(11.5), Inches(1.0),
+             [title], size=36, bold=True, color=(0x11, 0x2B, 0x4A))
+    _textbox(s, Inches(0.9), Inches(2.0), Inches(6.6), Inches(3.9),
+             ["•  Latency down 18% after the caching rollout",
+              "•  Two regions migrated to the new scheduler",
+              "•  One open SRE role remains"], size=19)
+    card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7.95), Inches(2.0),
+                              Inches(4.45), Inches(3.9))
+    card.fill.solid(); card.fill.fore_color.rgb = RGBColor(0xEF, 0xF3, 0xF8)
+    card.line.fill.background()
+    _textbox(s, Inches(8.30), Inches(2.30), Inches(3.75), Inches(2.8),
+             ["In practice", "", "Latency improved", "Scheduler migration on track"],
+             size=15, color=(0x30, 0x3A, 0x46))
+    prs.save(path)
+    return path
+
+
+def build_ontopic(path: str) -> str:
+    """Good form AND carries the required title text 'Quarterly Platform Review'."""
+    return _build_titled(path, "Quarterly Platform Review")
+
+
+def build_offtopic(path: str) -> str:
+    """Identical good form but a generic title that does NOT contain the required text.
+    A form-only reward scores this == on-topic; an adherence-aware reward must score it lower."""
+    return _build_titled(path, "Strategic Overview")
+
+
+BUILDERS = {"good": build_good, "padded": build_padded, "empty": build_empty,
+            "empty_chart": build_empty_chart, "sparse": build_sparse,
+            "ontopic": build_ontopic, "offtopic": build_offtopic}
 
 
 def build_fixtures(outdir: str = "/tmp/reward_fixtures") -> Dict[str, dict]:
